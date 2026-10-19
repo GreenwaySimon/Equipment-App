@@ -93,11 +93,11 @@ def run():
       action = str(row.get("Action Type", ""))
 
       for eq_id in eq_list:
-        if action == "Check Out for Course":
+        if action == "Check Out":
           asset_status_map[eq_id] = "🔴 IN USE"
-        elif action == "Send to Maintenance":
+        elif action == "Report Damage / Maintenance":
           asset_status_map[eq_id] = "⚠️ MAINTENANCE"
-        elif action == "Check In / Return":
+        elif action == "Return Equipment":
           insp = str(row.get("Inspection Result", ""))
           if "Fail" in insp or "Maintenance" in insp:
             asset_status_map[eq_id] = "⚠️ MAINTENANCE"
@@ -122,16 +122,17 @@ def run():
     st.write("Fill out the form below to record an entry.")
 
     with st.form("log_form"):
+      # 1. Action Type dropdown in the first position
       action_type = st.selectbox(
           "Action Type",
-          ["Check Out for Course", "Check In / Return", "Send to Maintenance"],
+          ["Check Out", "Return Equipment", "Report Damage / Maintenance"],
       )
 
       instructor_name = st.text_input("Instructor Name")
       customer_name = st.text_input("Customer / Candidate Name")
 
-      # Multi-select for Equipment IDs omitting In-Use gear during checkout
-      if action_type == "Check Out for Course":
+      # Equipment IDs selection (omits in-use gear if checking out)
+      if action_type == "Check Out":
         equipment_ids = st.multiselect(
             "Equipment IDs (Available Equipment)",
             options=available_for_checkout,
@@ -204,7 +205,7 @@ def run():
 
     df_dashboard = pd.DataFrame(dashboard_rows)
 
-    # Calculate KPI totals
+    # Calculate KPI summary totals
     total_avail = (
         (df_dashboard["Status"] == "🟢 AVAILABLE").sum()
         if not df_dashboard.empty
