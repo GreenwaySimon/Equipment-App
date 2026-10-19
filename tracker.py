@@ -4,6 +4,9 @@ import pandas as pd
 import streamlit as st
 
 EXCEL_FILE = "equipment_log.xlsx"
+EXCEL_PATH = (  # Added this alias to match app.py line 54
+    EXCEL_FILE
+)
 COLUMNS = [
     "Timestamp",
     "Asset ID",
@@ -66,7 +69,7 @@ def run():
   df = load_data()
 
   # App Header
-  st.title("Instructor Action Portal")
+  st.title("Chainsaw & PPE Live Inventory Hub")
   st.write("Mobile-friendly equipment tracking and logging portal.")
 
   # Left Sidebar Navigation
