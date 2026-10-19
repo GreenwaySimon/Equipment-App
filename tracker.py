@@ -3,33 +3,46 @@ import os
 import pandas as pd
 import streamlit as st
 
-EXCEL_FILE = "equipment_log.xlsx"
-COLUMNS = [
-    "Timestamp",
-    "Asset ID",
-    "Status",
-    "Instructor",
-    "Assessment Date",
-    "Notes",
-]
+EXCEL_FILE = "Chainsaw_Equipment_Tracker.xlsx"
+EXCEL_PATH = EXCEL_FILE
 
 
-def load_data():
-  if os.path.exists(EXCEL_FILE):
+def load_inventory_and_logs():
+  # Load master Inventory sheet
+  try:
+    df_inv = pd.read_excel(EXCEL_FILE, sheet_name="Inventory")
+  except Exception:
+    df_inv = pd.DataFrame(columns=["Asset ID", "Category"])
+
+  # Load log history sheet
+  try:
+    df_logs = pd.read_excel(EXCEL_FILE, sheet_name="Sheet1")
+  except Exception:
     try:
-      df = pd.read_excel(EXCEL_FILE)
-      for col in COLUMNS:
-        if col not in df.columns:
-          df[col] = ""
-      return df
+      df_logs = pd.read_excel(EXCEL_FILE)
     except Exception:
-      return pd.DataFrame(columns=COLUMNS)
-  else:
-    return pd.DataFrame(columns=COLUMNS)
+      df_logs = pd.DataFrame(
+          columns=[
+              "Timestamp",
+              "Asset ID",
+              "Status",
+              "Instructor",
+              "Assessment Date",
+              "Inspection",
+              "Notes",
+          ]
+      )
+
+  return df_inv, df_logs
 
 
-def save_data(df):
-  df.to_excel(EXCEL_FILE, index=False)
+def save_log(new_row_df):
+  df_inv, df_logs = load_inventory_and_logs()
+  df_logs = pd.concat([df_logs, new_row_df], ignore_index=True)
+
+  with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl") as writer:
+    df_inv.to_excel(writer, sheet_name="Inventory", index=False)
+    df_logs.to_excel(writer, sheet_name="Sheet1", index=False)
 
 
 def run():
@@ -62,13 +75,9 @@ def run():
       unsafe_allow_html=True,
   )
 
-  df = load_data()
+  df_inv, df_logs = load_inventory_and_logs()
 
-  # App Header
-  st.title("Instructor Action Portal")
-  st.write("Mobile-friendly equipment tracking and logging portal.")
-
-  # Left Sidebar Navigation
+  # Left Sidebar Navigation Menu
   st.sidebar.title("Menu")
   nav_option = st.sidebar.radio(
       "Navigation", ["Equipment Log Action", "Live Dashboard"]
@@ -92,6 +101,9 @@ def run():
       assessment_date = st.date_input(
           "Assessment Date", value=datetime.date.today()
       )
+      inspection = st.text_input(
+          "Inspection", placeholder="e.g. Passed / Failed"
+      )
       notes = st.text_area("Notes / Details")
 
       submitted = st.form_submit_button("Submit Entry")
@@ -106,21 +118,35 @@ def run():
               "Status": status,
               "Instructor": instructor.strip(),
               "Assessment Date": assessment_date.strftime("%Y-%m-%d"),
+              "Inspection": inspection,
               "Notes": notes,
           }])
-          df = pd.concat([df, new_entry], ignore_index=True)
-          save_data(df)
+          save_log(new_entry)
           st.success("Log submitted successfully!")
           st.rerun()
         else:
           st.error("Please fill in both Asset ID and Instructor Name.")
 
-  # Section 2: Live Dashboard (Excel replication view)
+  # Section 2: Live Dashboard (Merging Inventory master sheet with latest logs)
   elif nav_option == "Live Dashboard":
     st.header("Live Dashboard")
     st.write("Complete log history replicating the Excel spreadsheet view.")
 
-    if not df.empty:
-      st.table(df)
+    if not df_inv.empty:
+      if not df_logs.empty:
+        df_logs_sorted = (
+            df_logs.sort_values("Timestamp", ascending=True)
+            if "Timestamp" in df_logs.columns
+            else df_logs
+        )
+        latest_logs = df_logs_sorted.drop_duplicates(
+            subset=["Asset ID"], keep="last"
+        )
+        display_df = pd.merge(df_inv, latest_logs, on="Asset ID", how="left")
+      else:
+        display_df = df_inv
+      st.table(display_df)
+    elif not df_logs.empty:
+      st.table(df_logs)
     else:
       st.info("No equipment logs recorded yet.")
