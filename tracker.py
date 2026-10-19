@@ -12,7 +12,7 @@ COLUMNS = [
     "Status",
     "Instructor",
     "Assessment Date",
-    "Inspection",
+    "Inspection Result",
     "Notes",
 ]
 
@@ -92,8 +92,8 @@ def run():
           "Assessment Date", value=datetime.date.today()
       )
 
-      # Inspection dropdown defaulting to "Not Inspected"
-      inspection = st.selectbox(
+      # Inspection Result defaulting to "Not Inspected"
+      inspection_result = st.selectbox(
           "Inspection Result",
           ["Not Inspected", "Inspected - Passed", "Inspected - Failed"],
           index=0,
@@ -113,7 +113,7 @@ def run():
               "Status": status,
               "Instructor": instructor.strip(),
               "Assessment Date": assessment_date.strftime("%Y-%m-%d"),
-              "Inspection": inspection,
+              "Inspection Result": inspection_result,
               "Notes": notes,
           }])
           df = pd.concat([df, new_entry], ignore_index=True)
