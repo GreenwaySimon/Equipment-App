@@ -75,7 +75,7 @@ def run():
       unsafe_allow_html=True,
   )
 
-  df_inv, df_logs = load_inventory_and_logs()
+  df_inv, df_logs = load_data = load_inventory_and_logs()
 
   # Left Sidebar Navigation Menu
   st.sidebar.title("Menu")
@@ -85,36 +85,77 @@ def run():
 
   st.markdown("---")
 
+  # Determine which equipment IDs currently have a status of "In Use"
+  in_use_ids = set()
+  if not df_logs.empty and "Asset ID" in df_logs.columns:
+    df_sorted = (
+        df_logs.sort_values("Timestamp", ascending=True)
+        if "Timestamp" in df_logs.columns
+        else df_logs
+    )
+    latest_status = df_sorted.drop_duplicates(subset=["Asset ID"], keep="last")
+    for _, row in latest_status.iterrows():
+      status_val = str(row.get("Status", "")).lower()
+      if "in use" in status_val or "checked out" in status_val:
+        in_use_ids.add(str(row["Asset ID"]))
+
+  # Get all available asset IDs from the Inventory sheet or log history
+  all_asset_ids = []
+  if not df_inv.empty and "Asset ID" in df_inv.columns:
+    all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
+  elif not df_logs.empty and "Asset ID" in df_logs.columns:
+    all_asset_ids = df_logs["Asset ID"].dropna().astype(str).unique().tolist()
+
+  available_assets = [aid for aid in all_asset_ids if aid not in in_use_ids]
+
   # Section 1: Equipment Log Action
   if nav_option == "Equipment Log Action":
     st.header("Equipment Log Action")
     st.write("Fill out the form below to record an entry.")
 
     with st.form("log_form"):
-      asset_id = st.text_input(
-          "Asset ID (Enter equipment number/tag)", placeholder="e.g. SAW-01"
-      )
+      # Asset ID dropdown omitting equipment that is "In Use"
+      if available_assets:
+        selected_asset = st.selectbox(
+            "Asset ID (Available Equipment)", available_assets
+        )
+      else:
+        selected_asset = st.text_input(
+            "Asset ID (Enter equipment number/tag)", placeholder="e.g. SAW-01"
+        )
+
       status = st.selectbox(
-          "Status", ["Operational", "Needs Maintenance", "Out of Service"]
+          "Status",
+          ["Operational", "In Use", "Needs Maintenance", "Out of Service"],
       )
       instructor = st.text_input("Instructor Name")
       assessment_date = st.date_input(
           "Assessment Date", value=datetime.date.today()
       )
-      inspection = st.text_input(
-          "Inspection", placeholder="e.g. Passed / Failed"
+
+      # Inspection dropdown defaulting to "Not Inspected"
+      inspection = st.selectbox(
+          "Inspection",
+          ["Not Inspected", "Inspected - Passed", "Inspected - Failed"],
+          index=0,
       )
+
       notes = st.text_area("Notes / Details")
 
       submitted = st.form_submit_button("Submit Entry")
 
       if submitted:
-        if asset_id and instructor:
+        final_asset = (
+            selected_asset
+            if isinstance(available_assets, list) and available_assets
+            else selected_asset
+        )
+        if final_asset and instructor:
           new_entry = pd.DataFrame([{
               "Timestamp": datetime.datetime.now().strftime(
                   "%Y-%m-%d %H:%M:%S"
               ),
-              "Asset ID": asset_id.strip(),
+              "Asset ID": str(final_asset).strip(),
               "Status": status,
               "Instructor": instructor.strip(),
               "Assessment Date": assessment_date.strftime("%Y-%m-%d"),
@@ -127,7 +168,7 @@ def run():
         else:
           st.error("Please fill in both Asset ID and Instructor Name.")
 
-  # Section 2: Live Dashboard (Merging Inventory master sheet with latest logs)
+  # Section 2: Live Dashboard (Excel spreadsheet replication view)
   elif nav_option == "Live Dashboard":
     st.header("Live Dashboard")
     st.write("Complete log history replicating the Excel spreadsheet view.")
