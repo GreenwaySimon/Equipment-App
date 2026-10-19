@@ -78,6 +78,8 @@ def run():
 
   st.markdown("---")
 
+  today = datetime.date.today()
+
   # Process equipment statuses, customer mappings, and dynamic dates based on history
   asset_data_map = {}
   customer_to_equipment_map = {}
@@ -96,6 +98,7 @@ def run():
       cust = str(row.get("Customer / Candidate Name", ""))
       ts = str(row.get("Timestamp", ""))
       date_val = ts[:10] if ts and ts != "nan" else ""
+      ass_dt_log = str(row.get("Assessment Date", ""))
 
       for eq_id in eq_list:
         if eq_id not in asset_data_map:
@@ -105,6 +108,7 @@ def run():
               "customer": "",
               "checkout_date": "",
               "return_date": "",
+              "assessment_date": "",
               "reported_date": "",
               "repaired_date": "",
           }
@@ -112,6 +116,8 @@ def run():
         d = asset_data_map[eq_id]
         d["instructor"] = inst
         d["customer"] = cust
+        if ass_dt_log and ass_dt_log != "nan" and ass_dt_log.strip():
+          d["assessment_date"] = ass_dt_log.strip()
 
         if action == "Check Out":
           d["status"] = "🔴 IN USE"
@@ -126,11 +132,39 @@ def run():
             d["reported_date"] = date_val
             d["repaired_date"] = "Pending"
           else:
-            d["status"] = "🟢 AVAILABLE"
+            # Check if assessment date is set and is today or in the future relative to today
+            is_reserved = False
+            if d["assessment_date"]:
+              try:
+                ass_parsed = datetime.datetime.strptime(
+                    d["assessment_date"], "%d/%m/%Y"
+                ).date()
+                if today <= ass_parsed:
+                  is_reserved = True
+              except Exception:
+                pass
+
+            if is_reserved:
+              d["status"] = f"📅 RESERVED ({d['assessment_date']})"
+            else:
+              d["status"] = "🟢 AVAILABLE"
         elif action == "Report Damage / Maintenance":
           d["status"] = "⚠️ MAINTENANCE"
           d["reported_date"] = date_val
           d["repaired_date"] = "Pending"
+
+  # Re-evaluate statuses for assets whose assessment date has passed today
+  for aid, info in asset_data_map.items():
+    if "RESERVED" in info["status"]:
+      if info["assessment_date"]:
+        try:
+          ass_parsed = datetime.datetime.strptime(
+              info["assessment_date"], "%d/%m/%Y"
+          ).date()
+          if today > ass_parsed:
+            info["status"] = "🟢 AVAILABLE"
+        except Exception:
+          pass
 
   # Build map of active customers and the equipment they currently hold
   for aid, info in asset_data_map.items():
@@ -173,7 +207,7 @@ def run():
         customer_name = st.text_input("Customer / Candidate Name")
         equipment_ids = st.multiselect(
             "Equipment IDs (Available Equipment)",
-            options=available_for_checkout,
+            options=all_asset_ids if all_asset_ids else [],
         )
 
       elif action_type == "Return Equipment":
@@ -214,7 +248,6 @@ def run():
         )
         assessment_date_str = assessment_date_val.strftime("%d/%m/%Y")
 
-      # Inspection Result defaulting to "Not Inspected"
       inspection_result = st.selectbox(
           "Inspection Result",
           ["Not Inspected", "Pass", "Fail / Maintenance Required"],
@@ -225,8 +258,26 @@ def run():
 
       submitted = st.form_submit_button("Submit Entry")
 
+      # Warning checks during checkout for reserved equipment
+      has_reservation_warning = False
+      if submitted and action_type == "Check Out" and instructor_name:
+        for eq_id in equipment_ids:
+          eq_info = asset_data_map.get(eq_id, {})
+          if "RESERVED" in eq_info.get("status", ""):
+            ass_dt = eq_info.get("assessment_date", "")
+            st.warning(
+                f"Warning: Equipment {eq_id} is reserved for assessment on"
+                f" {ass_dt} and cannot be booked out!"
+            )
+            has_reservation_warning = True
+
       if submitted:
-        if instructor_name and equipment_ids:
+        if has_reservation_warning:
+          st.error(
+              "Submission blocked: One or more selected items are reserved for"
+              " assessment."
+          )
+        elif instructor_name and equipment_ids:
           eq_formatted = ", ".join(equipment_ids)
           new_entry = pd.DataFrame([{
               "Timestamp": datetime.datetime.now().strftime(
@@ -267,6 +318,7 @@ def run():
               "customer": "",
               "checkout_date": "",
               "return_date": "",
+              "assessment_date": "",
               "reported_date": "",
               "repaired_date": "",
           },
@@ -281,6 +333,9 @@ def run():
         rep_dt = info["reported_date"] or "N/A"
         repa_dt = info["repaired_date"] or "Pending"
         date_info = f"Reported: {rep_dt} | Repaired: {repa_dt}"
+      elif "RESERVED" in status:
+        ass_dt = info["assessment_date"] or "N/A"
+        date_info = f"Assessment Date: {ass_dt}"
       else:
         co_dt = info["checkout_date"] or "N/A"
         ret_dt = (
@@ -310,19 +365,26 @@ def run():
         if not df_dashboard.empty
         else 0
     )
+    total_reserved = (
+        df_dashboard["Status"].str.contains("RESERVED").sum()
+        if not df_dashboard.empty
+        else 0
+    )
     total_maint = (
         (df_dashboard["Status"] == "⚠️ MAINTENANCE").sum()
         if not df_dashboard.empty
         else 0
     )
 
-    # Display KPI Blocks at Top
-    kpi1, kpi2, kpi3 = st.columns(3)
+    # Display KPI Blocks at Top (4 columns)
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     with kpi1:
       st.metric(label="Total Available", value=total_avail)
     with kpi2:
       st.metric(label="Total In Use", value=total_in_use)
     with kpi3:
+      st.metric(label="Reserved for Assessment", value=total_reserved)
+    with kpi4:
       st.metric(label="Maintenance Required", value=total_maint)
 
     st.markdown("### Asset Inventory Status")
@@ -334,6 +396,8 @@ def run():
         return "background-color: #f8d7da; color: #721c24; font-weight: bold;"
       elif val == "⚠️ MAINTENANCE":
         return "background-color: #fff3cd; color: #856404; font-weight: bold;"
+      elif "RESERVED" in val:
+        return "background-color: #cce5ff; color: #004085; font-weight: bold;"
       return ""
 
     if not df_dashboard.empty:
