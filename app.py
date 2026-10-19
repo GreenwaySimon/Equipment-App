@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Top Header Layout with Logo and Title (matching your original visual layout)
+# Original Header Layout with Greenway Training Logo and Title
 col1, col2 = st.columns([1, 5])
 with col1:
   if os.path.exists("greenway_training_logo.jpg"):
