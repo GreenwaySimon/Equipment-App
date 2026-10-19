@@ -4,7 +4,6 @@ import pandas as pd
 import streamlit as st
 
 EXCEL_FILE = "Chainsaw_Equipment_Tracker.xlsx"
-EXCEL_PATH = EXCEL_FILE
 
 
 def load_inventory_and_logs():
@@ -24,12 +23,14 @@ def load_inventory_and_logs():
       df_logs = pd.DataFrame(
           columns=[
               "Timestamp",
-              "Asset ID",
-              "Status",
-              "Instructor",
+              "Action Type",
+              "Instructor Name",
+              "Customer / Candidate Name",
+              "Equipment IDs",
+              "Course Date",
               "Assessment Date",
-              "Inspection",
-              "Notes",
+              "Inspection Result",
+              "Notes / Damage Details",
           ]
       )
 
@@ -46,7 +47,7 @@ def save_log(new_row_df):
 
 
 def run():
-  # Mobile-Friendly CSS Styling & Large Touch Targets
+  # Custom CSS Styling
   st.markdown(
       """
     <style>
@@ -56,26 +57,19 @@ def run():
         width: 100% !important;
         min-height: 50px !important;
     }
-    div.row-widget.stRadio > div {
-        font-size: 18px !important;
-    }
-    h1, h2, h3 {
-        word-break: break-word;
-    }
-    table {
-        width: 100% !important;
-        font-size: 14px !important;
-    }
-    th, td {
-        word-break: break-word !important;
-        padding: 8px 4px !important;
+    .metric-card {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        border: 1px solid #dee2e6;
     }
     </style>
     """,
       unsafe_allow_html=True,
   )
 
-  df_inv, df_logs = load_data = load_inventory_and_logs()
+  df_inv, df_logs = load_inventory_and_logs()
 
   # Left Sidebar Navigation Menu
   st.sidebar.title("Menu")
@@ -85,109 +79,173 @@ def run():
 
   st.markdown("---")
 
-  # Determine which equipment IDs currently have a status of "In Use"
-  in_use_ids = set()
-  if not df_logs.empty and "Asset ID" in df_logs.columns:
+  # Process equipment statuses based on latest logs
+  asset_status_map = {}
+  if not df_logs.empty and "Equipment IDs" in df_logs.columns:
     df_sorted = (
         df_logs.sort_values("Timestamp", ascending=True)
         if "Timestamp" in df_logs.columns
         else df_logs
     )
-    latest_status = df_sorted.drop_duplicates(subset=["Asset ID"], keep="last")
-    for _, row in latest_status.iterrows():
-      status_val = str(row.get("Status", "")).lower()
-      if "in use" in status_val or "checked out" in status_val:
-        in_use_ids.add(str(row["Asset ID"]))
+    for _, row in df_sorted.iterrows():
+      eq_str = str(row.get("Equipment IDs", ""))
+      eq_list = [e.strip() for e in eq_str.split(",") if e.strip()]
+      action = str(row.get("Action Type", ""))
 
-  # Get all available asset IDs from the Inventory sheet or log history
+      for eq_id in eq_list:
+        if action == "Check Out for Course":
+          asset_status_map[eq_id] = "🔴 IN USE"
+        elif action == "Send to Maintenance":
+          asset_status_map[eq_id] = "⚠️ MAINTENANCE"
+        elif action == "Check In / Return":
+          insp = str(row.get("Inspection Result", ""))
+          if "Fail" in insp or "Maintenance" in insp:
+            asset_status_map[eq_id] = "⚠️ MAINTENANCE"
+          else:
+            asset_status_map[eq_id] = "🟢 AVAILABLE"
+
+  # Determine all assets from master inventory
   all_asset_ids = []
   if not df_inv.empty and "Asset ID" in df_inv.columns:
     all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
-  elif not df_logs.empty and "Asset ID" in df_logs.columns:
-    all_asset_ids = df_logs["Asset ID"].dropna().astype(str).unique().tolist()
 
-  available_assets = [aid for aid in all_asset_ids if aid not in in_use_ids]
+  # Exclude 'IN USE' assets for Check Out option
+  available_for_checkout = [
+      aid for aid in all_asset_ids if asset_status_map.get(aid) != "🔴 IN USE"
+  ]
 
-  # Section 1: Equipment Log Action
+  # ----------------------------------------------------
+  # SECTION 1: EQUIPMENT LOG ACTION
+  # ----------------------------------------------------
   if nav_option == "Equipment Log Action":
     st.header("Equipment Log Action")
     st.write("Fill out the form below to record an entry.")
 
     with st.form("log_form"):
-      # Asset ID dropdown omitting equipment that is "In Use"
-      if available_assets:
-        selected_asset = st.selectbox(
-            "Asset ID (Available Equipment)", available_assets
+      action_type = st.selectbox(
+          "Action Type",
+          ["Check Out for Course", "Check In / Return", "Send to Maintenance"],
+      )
+
+      instructor_name = st.text_input("Instructor Name")
+      customer_name = st.text_input("Customer / Candidate Name")
+
+      # Multi-select for Equipment IDs omitting In-Use gear during checkout
+      if action_type == "Check Out for Course":
+        equipment_ids = st.multiselect(
+            "Equipment IDs (Available Equipment)",
+            options=available_for_checkout,
         )
       else:
-        selected_asset = st.text_input(
-            "Asset ID (Enter equipment number/tag)", placeholder="e.g. SAW-01"
+        equipment_ids = st.multiselect(
+            "Equipment IDs",
+            options=all_asset_ids if all_asset_ids else [],
         )
 
-      status = st.selectbox(
-          "Status",
-          ["Operational", "In Use", "Needs Maintenance", "Out of Service"],
-      )
-      instructor = st.text_input("Instructor Name")
-      assessment_date = st.date_input(
-          "Assessment Date", value=datetime.date.today()
+      col_d1, col_d2 = st.columns(2)
+      with col_d1:
+        course_date = st.date_input("Course Date", value=datetime.date.today())
+      with col_d2:
+        assessment_date = st.date_input(
+            "Assessment Date", value=datetime.date.today()
+        )
+
+      inspection_result = st.selectbox(
+          "Inspection Result",
+          ["Pass", "Fail / Maintenance Required"],
       )
 
-      # Inspection dropdown defaulting to "Not Inspected"
-      inspection = st.selectbox(
-          "Inspection",
-          ["Not Inspected", "Inspected - Passed", "Inspected - Failed"],
-          index=0,
-      )
-
-      notes = st.text_area("Notes / Details")
+      notes = st.text_area("Notes / Damage Details")
 
       submitted = st.form_submit_button("Submit Entry")
 
       if submitted:
-        final_asset = (
-            selected_asset
-            if isinstance(available_assets, list) and available_assets
-            else selected_asset
-        )
-        if final_asset and instructor:
+        if instructor_name and equipment_ids:
+          eq_formatted = ", ".join(equipment_ids)
           new_entry = pd.DataFrame([{
               "Timestamp": datetime.datetime.now().strftime(
                   "%Y-%m-%d %H:%M:%S"
               ),
-              "Asset ID": str(final_asset).strip(),
-              "Status": status,
-              "Instructor": instructor.strip(),
+              "Action Type": action_type,
+              "Instructor Name": instructor_name.strip(),
+              "Customer / Candidate Name": customer_name.strip(),
+              "Equipment IDs": eq_formatted,
+              "Course Date": course_date.strftime("%Y-%m-%d"),
               "Assessment Date": assessment_date.strftime("%Y-%m-%d"),
-              "Inspection": inspection,
-              "Notes": notes,
+              "Inspection Result": inspection_result,
+              "Notes / Damage Details": notes,
           }])
           save_log(new_entry)
           st.success("Log submitted successfully!")
           st.rerun()
         else:
-          st.error("Please fill in both Asset ID and Instructor Name.")
+          st.error("Please provide Instructor Name and select Equipment IDs.")
 
-  # Section 2: Live Dashboard (Excel spreadsheet replication view)
+  # ----------------------------------------------------
+  # SECTION 2: LIVE DASHBOARD
+  # ----------------------------------------------------
   elif nav_option == "Live Dashboard":
     st.header("Live Dashboard")
-    st.write("Complete log history replicating the Excel spreadsheet view.")
 
-    if not df_inv.empty:
-      if not df_logs.empty:
-        df_logs_sorted = (
-            df_logs.sort_values("Timestamp", ascending=True)
-            if "Timestamp" in df_logs.columns
-            else df_logs
-        )
-        latest_logs = df_logs_sorted.drop_duplicates(
-            subset=["Asset ID"], keep="last"
-        )
-        display_df = pd.merge(df_inv, latest_logs, on="Asset ID", how="left")
-      else:
-        display_df = df_inv
-      st.table(display_df)
-    elif not df_logs.empty:
-      st.table(df_logs)
+    # Build master live dashboard dataset
+    dashboard_rows = []
+    for aid in all_asset_ids:
+      category = ""
+      if not df_inv.empty and "Category" in df_inv.columns:
+        cat_match = df_inv[df_inv["Asset ID"].astype(str) == aid]["Category"]
+        if not cat_match.empty:
+          category = cat_match.values[0]
+
+      status = asset_status_map.get(aid, "🟢 AVAILABLE")
+
+      dashboard_rows.append(
+          {"Asset ID": aid, "Category": category, "Status": status}
+      )
+
+    df_dashboard = pd.DataFrame(dashboard_rows)
+
+    # Calculate KPI totals
+    total_avail = (
+        (df_dashboard["Status"] == "🟢 AVAILABLE").sum()
+        if not df_dashboard.empty
+        else 0
+    )
+    total_in_use = (
+        (df_dashboard["Status"] == "🔴 IN USE").sum()
+        if not df_dashboard.empty
+        else 0
+    )
+    total_maint = (
+        (df_dashboard["Status"] == "⚠️ MAINTENANCE").sum()
+        if not df_dashboard.empty
+        else 0
+    )
+
+    # Display KPI Blocks at Top
+    kpi1, kpi2, kpi3 = st.columns(3)
+    with kpi1:
+      st.metric(label="Total Available", value=total_avail)
+    with kpi2:
+      st.metric(label="Total In Use", value=total_in_use)
+    with kpi3:
+      st.metric(label="Maintenance Required", value=total_maint)
+
+    st.markdown("### Asset Inventory Status")
+
+    # Styling helper for conditional status formatting
+    def highlight_status(val):
+      if val == "🟢 AVAILABLE":
+        return "background-color: #d4edda; color: #155724; font-weight: bold;"
+      elif val == "🔴 IN USE":
+        return "background-color: #f8d7da; color: #721c24; font-weight: bold;"
+      elif val == "⚠️ MAINTENANCE":
+        return "background-color: #fff3cd; color: #856404; font-weight: bold;"
+      return ""
+
+    if not df_dashboard.empty:
+      styled_df = df_dashboard.style.applymap(
+          highlight_status, subset=["Status"]
+      )
+      st.dataframe(styled_df, use_container_width=True)
     else:
-      st.info("No equipment logs recorded yet.")
+      st.info("No asset inventory found.")
