@@ -27,7 +27,6 @@ def load_inventory_and_logs():
               "Instructor Name",
               "Customer / Candidate Name",
               "Equipment IDs",
-              "Course Date",
               "Assessment Date",
               "Inspection Result",
               "Notes / Damage Details",
@@ -94,9 +93,8 @@ def run():
       action = str(row.get("Action Type", ""))
       inst = str(row.get("Instructor Name", ""))
       cust = str(row.get("Customer / Candidate Name", ""))
-      course_dt = str(row.get("Course Date", ""))
       ts = str(row.get("Timestamp", ""))
-      date_val = course_dt if course_dt and course_dt != "nan" else ts[:10]
+      date_val = ts[:10] if ts and ts != "nan" else ""
 
       for eq_id in eq_list:
         if eq_id not in asset_data_map:
@@ -171,13 +169,16 @@ def run():
             options=all_asset_ids if all_asset_ids else [],
         )
 
-      col_d1, col_d2 = st.columns(2)
-      with col_d1:
-        course_date = st.date_input("Course Date", value=datetime.date.today())
-      with col_d2:
-        assessment_date = st.date_input(
+      # Optional Assessment Date with dd/mm/yyyy formatting support
+      include_assessment = st.checkbox(
+          "Include Assessment Date (Optional)", value=False
+      )
+      assessment_date_str = ""
+      if include_assessment:
+        assessment_date_val = st.date_input(
             "Assessment Date", value=datetime.date.today()
         )
+        assessment_date_str = assessment_date_val.strftime("%d/%m/%Y")
 
       inspection_result = st.selectbox(
           "Inspection Result",
@@ -199,8 +200,7 @@ def run():
               "Instructor Name": instructor_name.strip(),
               "Customer / Candidate Name": customer_name.strip(),
               "Equipment IDs": eq_formatted,
-              "Course Date": course_date.strftime("%Y-%m-%d"),
-              "Assessment Date": assessment_date.strftime("%Y-%m-%d"),
+              "Assessment Date": assessment_date_str,
               "Inspection Result": inspection_result,
               "Notes / Damage Details": notes,
           }])
