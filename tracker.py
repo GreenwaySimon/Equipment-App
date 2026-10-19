@@ -79,10 +79,8 @@ def run():
 
   st.markdown("---")
 
-  # Process equipment statuses and latest log details based on history
-  asset_status_map = {}
-  last_instructor_map = {}
-  last_customer_map = {}
+  # Process equipment statuses and dynamic dates based on history
+  asset_data_map = {}
 
   if not df_logs.empty and "Equipment IDs" in df_logs.columns:
     df_sorted = (
@@ -96,21 +94,43 @@ def run():
       action = str(row.get("Action Type", ""))
       inst = str(row.get("Instructor Name", ""))
       cust = str(row.get("Customer / Candidate Name", ""))
+      course_dt = str(row.get("Course Date", ""))
+      ts = str(row.get("Timestamp", ""))
+      date_val = course_dt if course_dt and course_dt != "nan" else ts[:10]
 
       for eq_id in eq_list:
-        last_instructor_map[eq_id] = inst
-        last_customer_map[eq_id] = cust
+        if eq_id not in asset_data_map:
+          asset_data_map[eq_id] = {
+              "status": "🟢 AVAILABLE",
+              "instructor": "",
+              "customer": "",
+              "checkout_date": "",
+              "return_date": "",
+              "reported_date": "",
+              "repaired_date": "",
+          }
+
+        d = asset_data_map[eq_id]
+        d["instructor"] = inst
+        d["customer"] = cust
 
         if action == "Check Out":
-          asset_status_map[eq_id] = "🔴 IN USE"
-        elif action == "Report Damage / Maintenance":
-          asset_status_map[eq_id] = "⚠️ MAINTENANCE"
+          d["status"] = "🔴 IN USE"
+          d["checkout_date"] = date_val
+          d["return_date"] = "Pending"
         elif action == "Return Equipment":
           insp = str(row.get("Inspection Result", ""))
+          d["return_date"] = date_val
           if "Fail" in insp or "Maintenance" in insp:
-            asset_status_map[eq_id] = "⚠️ MAINTENANCE"
+            d["status"] = "⚠️ MAINTENANCE"
+            d["reported_date"] = date_val
+            d["repaired_date"] = "Pending"
           else:
-            asset_status_map[eq_id] = "🟢 AVAILABLE"
+            d["status"] = "🟢 AVAILABLE"
+        elif action == "Report Damage / Maintenance":
+          d["status"] = "⚠️ MAINTENANCE"
+          d["reported_date"] = date_val
+          d["repaired_date"] = "Pending"
 
   # Determine all assets from master inventory
   all_asset_ids = []
@@ -119,7 +139,9 @@ def run():
 
   # Exclude 'IN USE' assets for Check Out option
   available_for_checkout = [
-      aid for aid in all_asset_ids if asset_status_map.get(aid) != "🔴 IN USE"
+      aid
+      for aid in all_asset_ids
+      if asset_data_map.get(aid, {}).get("status") != "🔴 IN USE"
   ]
 
   # ----------------------------------------------------
@@ -130,7 +152,6 @@ def run():
     st.write("Fill out the form below to record an entry.")
 
     with st.form("log_form"):
-      # Action Type dropdown in the first position
       action_type = st.selectbox(
           "Action Type",
           ["Check Out", "Return Equipment", "Report Damage / Maintenance"],
@@ -139,7 +160,6 @@ def run():
       instructor_name = st.text_input("Instructor Name")
       customer_name = st.text_input("Customer / Candidate Name")
 
-      # Equipment IDs selection (omits in-use gear if checking out)
       if action_type == "Check Out":
         equipment_ids = st.multiselect(
             "Equipment IDs (Available Equipment)",
@@ -196,18 +216,44 @@ def run():
   elif nav_option == "Live Dashboard":
     st.header("Live Dashboard")
 
-    # Build master live dashboard dataset with Status, Instructor, and Customer
     dashboard_rows = []
     for aid in all_asset_ids:
-      status = asset_status_map.get(aid, "🟢 AVAILABLE")
-      instructor = last_instructor_map.get(aid, "")
-      customer = last_customer_map.get(aid, "")
+      info = asset_data_map.get(
+          aid,
+          {
+              "status": "🟢 AVAILABLE",
+              "instructor": "",
+              "customer": "",
+              "checkout_date": "",
+              "return_date": "",
+              "reported_date": "",
+              "repaired_date": "",
+          },
+      )
+
+      status = info["status"]
+      instructor = info["instructor"]
+      customer = info["customer"]
+
+      # Conditional date labelling based on status
+      if status == "⚠️ MAINTENANCE":
+        rep_dt = info["reported_date"] or "N/A"
+        repa_dt = info["repaired_date"] or "Pending"
+        date_info = f"Reported: {rep_dt} | Repaired: {repa_dt}"
+      else:
+        co_dt = info["checkout_date"] or "N/A"
+        ret_dt = (
+            info["return_date"]
+            or ("Pending" if status == "🔴 IN USE" else "N/A")
+        )
+        date_info = f"Check Out: {co_dt} | Return: {ret_dt}"
 
       dashboard_rows.append({
           "Asset ID": aid,
           "Status": status,
           "Instructor Name": instructor,
           "Customer / Candidate Name": customer,
+          "Dates": date_info,
       })
 
     df_dashboard = pd.DataFrame(dashboard_rows)
@@ -240,7 +286,6 @@ def run():
 
     st.markdown("### Asset Inventory Status")
 
-    # Styling helper for conditional status formatting
     def highlight_status(val):
       if val == "🟢 AVAILABLE":
         return "background-color: #d4edda; color: #155724; font-weight: bold;"
