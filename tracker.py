@@ -79,8 +79,11 @@ def run():
 
   st.markdown("---")
 
-  # Process equipment statuses based on latest logs
+  # Process equipment statuses and latest log details based on history
   asset_status_map = {}
+  last_instructor_map = {}
+  last_customer_map = {}
+
   if not df_logs.empty and "Equipment IDs" in df_logs.columns:
     df_sorted = (
         df_logs.sort_values("Timestamp", ascending=True)
@@ -91,8 +94,13 @@ def run():
       eq_str = str(row.get("Equipment IDs", ""))
       eq_list = [e.strip() for e in eq_str.split(",") if e.strip()]
       action = str(row.get("Action Type", ""))
+      inst = str(row.get("Instructor Name", ""))
+      cust = str(row.get("Customer / Candidate Name", ""))
 
       for eq_id in eq_list:
+        last_instructor_map[eq_id] = inst
+        last_customer_map[eq_id] = cust
+
         if action == "Check Out":
           asset_status_map[eq_id] = "🔴 IN USE"
         elif action == "Report Damage / Maintenance":
@@ -188,20 +196,19 @@ def run():
   elif nav_option == "Live Dashboard":
     st.header("Live Dashboard")
 
-    # Build master live dashboard dataset
+    # Build master live dashboard dataset with Status, Instructor, and Customer
     dashboard_rows = []
     for aid in all_asset_ids:
-      category = ""
-      if not df_inv.empty and "Category" in df_inv.columns:
-        cat_match = df_inv[df_inv["Asset ID"].astype(str) == aid]["Category"]
-        if not cat_match.empty:
-          category = cat_match.values[0]
-
       status = asset_status_map.get(aid, "🟢 AVAILABLE")
+      instructor = last_instructor_map.get(aid, "")
+      customer = last_customer_map.get(aid, "")
 
-      dashboard_rows.append(
-          {"Asset ID": aid, "Category": category, "Status": status}
-      )
+      dashboard_rows.append({
+          "Asset ID": aid,
+          "Status": status,
+          "Instructor Name": instructor,
+          "Customer / Candidate Name": customer,
+      })
 
     df_dashboard = pd.DataFrame(dashboard_rows)
 
@@ -244,7 +251,6 @@ def run():
       return ""
 
     if not df_dashboard.empty:
-      # Compatible mapping for modern pandas versions
       if hasattr(df_dashboard.style, "map"):
         styled_df = df_dashboard.style.map(
             highlight_status, subset=["Status"]
