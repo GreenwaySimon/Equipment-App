@@ -6,11 +6,11 @@ import tracker
 # Page Configuration
 st.set_page_config(
     page_title="Chainsaw & PPE Live Inventory Hub",
-    layout="centered",
+    layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Original Header Layout with Logo and Title
+# Header Layout with Logo and Title
 col1, col2 = st.columns([1, 5])
 with col1:
   if os.path.exists("greenway_training_logo.jpg"):
@@ -20,5 +20,5 @@ with col2:
 
 st.markdown("---")
 
-# Run the core application and dashboard logic from tracker.py
+# Run application logic from tracker.py
 tracker.run()
