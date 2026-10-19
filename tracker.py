@@ -12,7 +12,7 @@ COLUMNS = [
     "Status",
     "Instructor",
     "Assessment Date",
-    "Inspection Result",
+    "Inspection",
     "Notes",
 ]
 
@@ -91,14 +91,9 @@ def run():
       assessment_date = st.date_input(
           "Assessment Date", value=datetime.date.today()
       )
-
-      # Inspection Result defaulting to "Not Inspected"
-      inspection_result = st.selectbox(
-          "Inspection Result",
-          ["Not Inspected", "Inspected - Passed", "Inspected - Failed"],
-          index=0,
+      inspection = st.text_input(
+          "Inspection", placeholder="e.g. Passed / Failed"
       )
-
       notes = st.text_area("Notes / Details")
 
       submitted = st.form_submit_button("Submit Entry")
@@ -113,7 +108,7 @@ def run():
               "Status": status,
               "Instructor": instructor.strip(),
               "Assessment Date": assessment_date.strftime("%Y-%m-%d"),
-              "Inspection Result": inspection_result,
+              "Inspection": inspection,
               "Notes": notes,
           }])
           df = pd.concat([df, new_entry], ignore_index=True)
