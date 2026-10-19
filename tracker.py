@@ -3,7 +3,6 @@ import os
 import pandas as pd
 import streamlit as st
 
-# Point directly to your repository's Excel file
 EXCEL_FILE = "Chainsaw_Equipment_Tracker.xlsx"
 EXCEL_PATH = EXCEL_FILE
 
@@ -13,7 +12,7 @@ COLUMNS = [
     "Status",
     "Instructor",
     "Assessment Date",
-    "Inspection Result",
+    "Inspection",
     "Notes",
 ]
 
@@ -68,10 +67,6 @@ def run():
 
   df = load_data()
 
-  # App Header
-  st.title("Chainsaw & PPE Live Inventory Hub")
-  st.write("Mobile-friendly equipment tracking and logging portal.")
-
   # Left Sidebar Navigation Menu
   st.sidebar.title("Menu")
   nav_option = st.sidebar.radio(
@@ -97,8 +92,8 @@ def run():
           "Assessment Date", value=datetime.date.today()
       )
 
-      # Inspection Result Dropdown defaulting to "Not Inspected"
-      inspection_result = st.selectbox(
+      # Inspection dropdown defaulting to "Not Inspected"
+      inspection = st.selectbox(
           "Inspection Result",
           ["Not Inspected", "Inspected - Passed", "Inspected - Failed"],
           index=0,
@@ -118,7 +113,7 @@ def run():
               "Status": status,
               "Instructor": instructor.strip(),
               "Assessment Date": assessment_date.strftime("%Y-%m-%d"),
-              "Inspection Result": inspection_result,
+              "Inspection": inspection,
               "Notes": notes,
           }])
           df = pd.concat([df, new_entry], ignore_index=True)
@@ -128,7 +123,7 @@ def run():
         else:
           st.error("Please fill in both Asset ID and Instructor Name.")
 
-  # Section 2: Live Dashboard (Excel replication view)
+  # Section 2: Live Dashboard (Excel spreadsheet replication view)
   elif nav_option == "Live Dashboard":
     st.header("Live Dashboard")
     st.write("Complete log history replicating the Excel spreadsheet view.")
