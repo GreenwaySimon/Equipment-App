@@ -91,6 +91,7 @@ def run():
       assessment_date = st.date_input(
           "Assessment Date", value=datetime.date.today()
       )
+      # Original text input for Inspection
       inspection = st.text_input(
           "Inspection", placeholder="e.g. Passed / Failed"
       )
