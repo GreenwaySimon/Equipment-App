@@ -238,6 +238,7 @@ def run():
             options=all_asset_ids if all_asset_ids else [],
         )
 
+      # Dynamic Assessment Date box opening immediately upon ticking checkbox
       include_assessment = st.checkbox(
           "Include Assessment Date (Optional)", value=False
       )
