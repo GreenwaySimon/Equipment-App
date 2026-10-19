@@ -3,17 +3,17 @@ import os
 import pandas as pd
 import streamlit as st
 
-EXCEL_FILE = "equipment_log.xlsx"
-EXCEL_PATH = (  # Added this alias to match app.py line 54
-    EXCEL_FILE
-)
+# Point directly to your repository's Excel file
+EXCEL_FILE = "Chainsaw_Equipment_Tracker.xlsx"
+EXCEL_PATH = EXCEL_FILE
+
 COLUMNS = [
     "Timestamp",
     "Asset ID",
     "Status",
     "Instructor",
     "Assessment Date",
-    "Inspection",
+    "Inspection Result",
     "Notes",
 ]
 
@@ -72,7 +72,7 @@ def run():
   st.title("Chainsaw & PPE Live Inventory Hub")
   st.write("Mobile-friendly equipment tracking and logging portal.")
 
-  # Left Sidebar Navigation
+  # Left Sidebar Navigation Menu
   st.sidebar.title("Menu")
   nav_option = st.sidebar.radio(
       "Navigation", ["Equipment Log Action", "Live Dashboard"]
@@ -98,7 +98,7 @@ def run():
       )
 
       # Inspection Result Dropdown defaulting to "Not Inspected"
-      inspection = st.selectbox(
+      inspection_result = st.selectbox(
           "Inspection Result",
           ["Not Inspected", "Inspected - Passed", "Inspected - Failed"],
           index=0,
@@ -118,7 +118,7 @@ def run():
               "Status": status,
               "Instructor": instructor.strip(),
               "Assessment Date": assessment_date.strftime("%Y-%m-%d"),
-              "Inspection": inspection,
+              "Inspection Result": inspection_result,
               "Notes": notes,
           }])
           df = pd.concat([df, new_entry], ignore_index=True)
