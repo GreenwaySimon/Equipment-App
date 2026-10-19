@@ -122,7 +122,7 @@ def run():
     st.write("Fill out the form below to record an entry.")
 
     with st.form("log_form"):
-      # 1. Action Type dropdown in the first position
+      # Action Type dropdown in the first position
       action_type = st.selectbox(
           "Action Type",
           ["Check Out", "Return Equipment", "Report Damage / Maintenance"],
@@ -244,9 +244,15 @@ def run():
       return ""
 
     if not df_dashboard.empty:
-      styled_df = df_dashboard.style.applymap(
-          highlight_status, subset=["Status"]
-      )
+      # Compatible mapping for modern pandas versions
+      if hasattr(df_dashboard.style, "map"):
+        styled_df = df_dashboard.style.map(
+            highlight_status, subset=["Status"]
+        )
+      else:
+        styled_df = df_dashboard.style.applymap(
+            highlight_status, subset=["Status"]
+        )
       st.dataframe(styled_df, use_container_width=True)
     else:
       st.info("No asset inventory found.")
