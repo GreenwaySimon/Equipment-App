@@ -78,8 +78,9 @@ def run():
 
   st.markdown("---")
 
-  # Process equipment statuses and dynamic dates based on history
+  # Process equipment statuses, customer mappings, and dynamic dates based on history
   asset_data_map = {}
+  customer_to_equipment_map = {}
 
   if not df_logs.empty and "Equipment IDs" in df_logs.columns:
     df_sorted = (
@@ -119,6 +120,7 @@ def run():
         elif action == "Return Equipment":
           insp = str(row.get("Inspection Result", ""))
           d["return_date"] = date_val
+          d["customer"] = ""
           if "Fail" in insp or "Maintenance" in insp:
             d["status"] = "⚠️ MAINTENANCE"
             d["reported_date"] = date_val
@@ -129,6 +131,15 @@ def run():
           d["status"] = "⚠️ MAINTENANCE"
           d["reported_date"] = date_val
           d["repaired_date"] = "Pending"
+
+  # Build map of active customers and the equipment they currently hold
+  for aid, info in asset_data_map.items():
+    if info["status"] == "🔴 IN USE" and info["customer"]:
+      c_name = info["customer"]
+      if c_name not in customer_to_equipment_map:
+        customer_to_equipment_map[c_name] = []
+      if aid not in customer_to_equipment_map[c_name]:
+        customer_to_equipment_map[c_name].append(aid)
 
   # Determine all assets from master inventory
   all_asset_ids = []
@@ -156,20 +167,43 @@ def run():
       )
 
       instructor_name = st.text_input("Instructor Name")
-      customer_name = st.text_input("Customer / Candidate Name")
 
+      # Dynamic Customer & Equipment selection based on Action Type
       if action_type == "Check Out":
+        customer_name = st.text_input("Customer / Candidate Name")
         equipment_ids = st.multiselect(
             "Equipment IDs (Available Equipment)",
             options=available_for_checkout,
         )
-      else:
+
+      elif action_type == "Return Equipment":
+        active_customers = list(customer_to_equipment_map.keys())
+        if active_customers:
+          customer_name = st.selectbox(
+              "Customer / Candidate Name", options=active_customers
+          )
+          allowed_equipment = customer_to_equipment_map.get(customer_name, [])
+          equipment_ids = st.multiselect(
+              "Equipment IDs to Return",
+              options=allowed_equipment,
+              default=allowed_equipment,
+          )
+        else:
+          st.info(
+              "No customers currently have equipment checked out to return."
+          )
+          customer_name = ""
+          equipment_ids = []
+
+      else:  # Report Damage / Maintenance
+        customer_name = st.text_input(
+            "Customer / Candidate Name (Optional)"
+        )
         equipment_ids = st.multiselect(
             "Equipment IDs",
             options=all_asset_ids if all_asset_ids else [],
         )
 
-      # Optional Assessment Date with dd/mm/yyyy formatting support
       include_assessment = st.checkbox(
           "Include Assessment Date (Optional)", value=False
       )
@@ -180,9 +214,11 @@ def run():
         )
         assessment_date_str = assessment_date_val.strftime("%d/%m/%Y")
 
+      # Inspection Result defaulting to "Not Inspected"
       inspection_result = st.selectbox(
           "Inspection Result",
-          ["Pass", "Fail / Maintenance Required"],
+          ["Not Inspected", "Pass", "Fail / Maintenance Required"],
+          index=0,
       )
 
       notes = st.text_area("Notes / Damage Details")
@@ -198,7 +234,9 @@ def run():
               ),
               "Action Type": action_type,
               "Instructor Name": instructor_name.strip(),
-              "Customer / Candidate Name": customer_name.strip(),
+              "Customer / Candidate Name": (
+                  str(customer_name).strip() if customer_name else ""
+              ),
               "Equipment IDs": eq_formatted,
               "Assessment Date": assessment_date_str,
               "Inspection Result": inspection_result,
@@ -208,7 +246,10 @@ def run():
           st.success("Log submitted successfully!")
           st.rerun()
         else:
-          st.error("Please provide Instructor Name and select Equipment IDs.")
+          st.error(
+              "Please provide Instructor Name, Customer, and select Equipment"
+              " IDs."
+          )
 
   # ----------------------------------------------------
   # SECTION 2: LIVE DASHBOARD
