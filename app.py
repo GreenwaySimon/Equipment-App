@@ -39,7 +39,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Excel Data Handling Setup (Pointing to your original Excel file)
+# Excel Data Handling Setup
 EXCEL_FILE = "Chainsaw_Equipment_Tracker.xlsx"
 COLUMNS = [
     "Timestamp",
@@ -87,7 +87,7 @@ st.markdown("---")
 st.sidebar.title("Menu")
 nav_option = st.sidebar.radio(
     "Navigation", ["Equipment Log Action", "Live Dashboard"]
-]
+)
 
 st.markdown("---")
 
@@ -107,10 +107,7 @@ if nav_option == "Equipment Log Action":
     assessment_date = st.date_input(
         "Assessment Date", value=datetime.date.today()
     )
-
-    # Original text input box for Inspection
     inspection = st.text_input("Inspection", placeholder="e.g. Passed / Failed")
-
     notes = st.text_area("Notes / Details")
 
     submitted = st.form_submit_button("Submit Entry")
