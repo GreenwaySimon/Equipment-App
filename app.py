@@ -10,12 +10,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Display Greenway Training Logo if present
-if os.path.exists("greenway_training_logo.jpg"):
-  st.image("greenway_training_logo.jpg", width=120)
+# Top Header Layout with Logo and Title (matching your original visual layout)
+col1, col2 = st.columns([1, 5])
+with col1:
+  if os.path.exists("greenway_training_logo.jpg"):
+    st.image("greenway_training_logo.jpg", width=110)
+with col2:
+  st.title("Chainsaw & PPE Live Inventory Hub")
 
-# App Title Header
-st.title("Chainsaw & PPE Live Inventory Hub")
+st.markdown("---")
 
 # Run the core tracking logic from tracker.py
 tracker.run()
