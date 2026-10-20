@@ -11,13 +11,11 @@ LOGO_FILE = "greenway_training_logo.jpg"
 
 
 def load_inventory_and_logs():
-    # Load master Inventory sheet
     try:
         df_inv = pd.read_excel(EXCEL_FILE, sheet_name="Inventory")
     except Exception:
         df_inv = pd.DataFrame(columns=["Asset ID", "Category"])
 
-    # Load log history sheet
     try:
         df_logs = pd.read_excel(EXCEL_FILE, sheet_name="Sheet1")
     except Exception:
@@ -58,10 +56,7 @@ def save_inventory(df_inv):
 
 def send_maintenance_email(log_details):
     recipients = ["simon@greenwaytraining.co.uk", "rob@greenwaytraining.co.uk"]
-    subject = (
-        f"⚠️ Equipment Damage / Maintenance Reported -"
-        f" {log_details['Equipment IDs']}"
-    )
+    subject = f"⚠️ Equipment Damage / Maintenance Reported - {log_details['Equipment IDs']}"
 
     body = f"""
 An equipment damage or maintenance report has been submitted:
@@ -84,9 +79,8 @@ An equipment damage or maintenance report has been submitted:
 
         if not sender_email or not sender_password:
             st.warning(
-                "Log saved successfully, but email notification could not be sent"
-                " because SMTP credentials (SENDER_EMAIL and SENDER_PASSWORD) are not"
-                " configured in Streamlit Secrets."
+                "Log saved successfully, but email notification could not be sent "
+                "because SMTP credentials are not configured in Streamlit Secrets."
             )
             return
 
@@ -103,13 +97,10 @@ An equipment damage or maintenance report has been submitted:
         server.quit()
         st.success("Maintenance report email sent successfully to Simon and Rob!")
     except Exception as e:
-        st.warning(
-            f"Log saved successfully, but failed to send email notification: {e}"
-        )
+        st.warning(f"Log saved successfully, but failed to send email notification: {e}")
 
 
 def run():
-    # Initialize session state for Dashboard view options if not set
     if "show_instructor" not in st.session_state:
         st.session_state.show_instructor = True
     if "show_customer" not in st.session_state:
@@ -117,7 +108,6 @@ def run():
     if "show_dates" not in st.session_state:
         st.session_state.show_dates = True
 
-    # Automatic mobile detection on first session load
     if "welcome_dismissed" not in st.session_state:
         ua = ""
         try:
@@ -127,11 +117,9 @@ def run():
         is_mobile_device = any(k in ua for k in ["mobi", "android", "iphone", "ipad", "ipod"])
         st.session_state.show_welcome = is_mobile_device
 
-    # Responsive CSS Styling: Reduces top padding gap & optimizes mobile elements
     st.markdown(
         """
     <style>
-    /* Reduce Streamlit's default top gap/padding */
     .block-container {
         padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
@@ -148,8 +136,6 @@ def run():
         text-align: center;
         border: 1px solid #dee2e6;
     }
-
-    /* Print styling rules for the printable guide */
     @media print {
         body { background: white; color: black; }
         .stSidebar, nav, header, button { display: none !important; }
@@ -160,8 +146,6 @@ def run():
             border-radius: 8px !important;
         }
     }
-
-    /* Mobile & Tablet Optimizations & Admin Portal Hiding */
     @media (max-width: 768px) {
         div.stRadio div[role="radiogroup"] label:nth-child(3) {
             display: none !important;
@@ -185,9 +169,6 @@ def run():
         unsafe_allow_html=True,
     )
 
-    # ----------------------------------------------------
-    # WELCOME / MOBILE HOME SCREEN GUIDE SCREEN (Mobile Only)
-    # ----------------------------------------------------
     if st.session_state.get("show_welcome", False):
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, width=220)
@@ -200,14 +181,14 @@ def run():
         with st.expander("📖 Step-by-Step Instructions: How to Add to Mobile Home Screen", expanded=True):
             st.markdown("""
             **For iPhone / iPad (Safari):**
-            1. Tap the **Share** button at the bottom of your screen (the square with an arrow pointing upward).
-            2. Scroll down through the options menu and tap **"Add to Home Screen"**.
-            3. Tap **Add** in the top-right corner. The app icon will now appear right on your home screen!
+            1. Tap the **Share** button at the bottom of your screen (square with an arrow pointing upward).
+            2. Scroll down and tap **"Add to Home Screen"**.
+            3. Tap **Add** in the top-right corner.
 
             **For Android (Chrome):**
             1. Tap the **three vertical dots** in the top-right corner of Chrome.
             2. Tap **"Add to Home screen"** or **"Install app"**.
-            3. Tap **Install** or **Add** to confirm. It will now be pinned to your device.
+            3. Tap **Install** or **Add** to confirm.
             """)
         
         if st.button("🚀 Continue to Inventory App", use_container_width=True):
@@ -215,11 +196,10 @@ def run():
             st.session_state.welcome_dismissed = True
             st.rerun()
             
-        return  # Pause main app rendering until welcome screen is dismissed
+        return
 
     df_inv, df_logs = load_inventory_and_logs()
 
-    # Left Sidebar Navigation Menu
     st.sidebar.title("Menu")
     nav_option = st.sidebar.radio(
         "Navigation",
@@ -228,7 +208,6 @@ def run():
 
     today = datetime.date.today()
 
-    # Process equipment statuses, customer mappings, and dynamic dates based on history
     asset_data_map = {}
     customer_to_equipment_map = {}
 
@@ -300,7 +279,6 @@ def run():
                     d["reported_date"] = date_val
                     d["repaired_date"] = "Pending"
 
-    # Re-evaluate statuses for assets whose assessment date has passed today
     for aid, info in asset_data_map.items():
         if "RESERVED" in info["status"]:
             if info["assessment_date"]:
@@ -313,7 +291,6 @@ def run():
                 except Exception:
                     pass
 
-    # Build map of active customers and the equipment they currently hold
     for aid, info in asset_data_map.items():
         if info["status"] == "🔴 IN USE" and info["customer"]:
             c_name = info["customer"]
@@ -322,12 +299,10 @@ def run():
             if aid not in customer_to_equipment_map[c_name]:
                 customer_to_equipment_map[c_name].append(aid)
 
-    # Determine all assets from master inventory
     all_asset_ids = []
     if not df_inv.empty and "Asset ID" in df_inv.columns:
         all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
 
-    # Helper function for in-line header rendering (Logo + Title)
     def render_header(title_text):
         if os.path.exists(LOGO_FILE):
             col_logo, col_title = st.columns([1, 4])
@@ -338,9 +313,6 @@ def run():
         else:
             st.title(title_text)
 
-    # ----------------------------------------------------
-    # SECTION 1: EQUIPMENT HIRE LOG
-    # ----------------------------------------------------
     if nav_option == "Equipment Hire Log":
         render_header("Equipment Hire Log")
         st.write("Fill out the form below to record an entry.")
@@ -387,7 +359,7 @@ def run():
                 customer_name = ""
                 equipment_ids = []
 
-        else:  # Report Damage / Maintenance
+        else:
             customer_name = st.text_input(
                 "Customer / Candidate Name (Optional)", key="input_customer_maint"
             )
@@ -442,24 +414,15 @@ def run():
                 if "RESERVED" in eq_info.get("status", ""):
                     ass_dt = eq_info.get("assessment_date", "")
                     st.warning(
-                        f"Warning: Equipment {eq_id} is reserved for assessment on"
-                        f" {ass_dt} and cannot be booked out!"
+                        f"Warning: Equipment {eq_id} is reserved for assessment on {ass_dt} and cannot be booked out!"
                     )
                     has_reservation_warning = True
 
         if submitted:
             if has_reservation_warning:
-                st.error(
-                    "Submission blocked: One or more selected items are reserved for"
-                    " assessment."
-                )
-            elif action_type == "Report Damage / Maintenance" and (
-                not equipment_ids or not notes.strip()
-            ):
-                st.error(
-                    "For 'Report Damage / Maintenance', you must select Equipment IDs"
-                    " and provide Notes / Damage Details."
-                )
+                st.error("Submission blocked: One or more selected items are reserved for assessment.")
+            elif action_type == "Report Damage / Maintenance" and (not equipment_ids or not notes.strip()):
+                st.error("For 'Report Damage / Maintenance', you must select Equipment IDs and provide Notes / Damage Details.")
             elif not instructor_name:
                 st.error("Please provide the Instructor Name.")
             elif not equipment_ids:
@@ -470,9 +433,7 @@ def run():
                     "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "Action Type": action_type,
                     "Instructor Name": instructor_name.strip(),
-                    "Customer / Candidate Name": (
-                        str(customer_name).strip() if customer_name else ""
-                    ),
+                    "Customer / Candidate Name": str(customer_name).strip() if customer_name else "",
                     "Equipment IDs": eq_formatted,
                     "Assessment Date": assessment_date_str,
                     "Inspection Result": inspection_result,
@@ -487,9 +448,6 @@ def run():
                 st.success("Log submitted successfully!")
                 st.rerun()
 
-    # ----------------------------------------------------
-    # SECTION 2: LIVE DASHBOARD
-    # ----------------------------------------------------
     elif nav_option == "Live Dashboard":
         render_header("Live Dashboard")
 
@@ -522,10 +480,7 @@ def run():
                 date_info = f"Assessment Date: {ass_dt}"
             else:
                 co_dt = info["checkout_date"] or "N/A"
-                ret_dt = (
-                    info["return_date"]
-                    or ("Pending" if status == "🔴 IN USE" else "N/A")
-                )
+                ret_dt = info["return_date"] or ("Pending" if status == "🔴 IN USE" else "N/A")
                 date_info = f"Check Out: {co_dt} | Return: {ret_dt}"
 
             row_dict = {"Asset ID": aid, "Status": status}
@@ -540,26 +495,10 @@ def run():
 
         df_dashboard = pd.DataFrame(dashboard_rows)
 
-        total_avail = (
-            (df_dashboard["Status"] == "🟢 AVAILABLE").sum()
-            if not df_dashboard.empty
-            else 0
-        )
-        total_in_use = (
-            (df_dashboard["Status"] == "🔴 IN USE").sum()
-            if not df_dashboard.empty
-            else 0
-        )
-        total_reserved = (
-            df_dashboard["Status"].str.contains("RESERVED").sum()
-            if not df_dashboard.empty
-            else 0
-        )
-        total_maint = (
-            (df_dashboard["Status"] == "⚠️ MAINTENANCE").sum()
-            if not df_dashboard.empty
-            else 0
-        )
+        total_avail = (df_dashboard["Status"] == "🟢 AVAILABLE").sum() if not df_dashboard.empty else 0
+        total_in_use = (df_dashboard["Status"] == "🔴 IN USE").sum() if not df_dashboard.empty else 0
+        total_reserved = df_dashboard["Status"].str.contains("RESERVED").sum() if not df_dashboard.empty else 0
+        total_maint = (df_dashboard["Status"] == "⚠️ MAINTENANCE").sum() if not df_dashboard.empty else 0
 
         kpi1, kpi2, kpi3, kpi4 = st.columns(4)
         with kpi1:
@@ -586,26 +525,16 @@ def run():
 
         if not df_dashboard.empty:
             if hasattr(df_dashboard.style, "map"):
-                styled_df = df_dashboard.style.map(
-                    highlight_status, subset=["Status"]
-                )
+                styled_df = df_dashboard.style.map(highlight_status, subset=["Status"])
             else:
-                styled_df = df_dashboard.style.applymap(
-                    highlight_status, subset=["Status"]
-                )
+                styled_df = df_dashboard.style.applymap(highlight_status, subset=["Status"])
             st.dataframe(styled_df, use_container_width=True)
         else:
             st.info("No asset inventory found.")
 
-    # ----------------------------------------------------
-    # SECTION 3: ADMIN PORTAL
-    # ----------------------------------------------------
     elif nav_option == "Admin Portal":
         render_header("Admin Management Portal")
-        st.write(
-            "Administrative controls for managing inventory, assessment dates,"
-            " dashboard views, scheduled kit hires, maintenance history, and mobile guides."
-        )
+        st.write("Administrative controls for managing inventory, assessment dates, dashboard views, scheduled kit hires, maintenance history, and mobile guides.")
 
         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             "Manage Equipment",
@@ -620,4 +549,142 @@ def run():
             st.subheader("Add or Remove Equipment")
             col_add, col_rem = st.columns(2)
 
-            with col
+            with col_add:
+                st.markdown("#### Add New Equipment")
+                with st.form("add_equip_form"):
+                    new_asset_id = st.text_input("New Asset ID")
+                    new_category = st.text_input("Category (e.g., Chainsaw, PPE)")
+                    add_submitted = st.form_submit_button("Add Equipment")
+
+                    if add_submitted:
+                        if new_asset_id.strip():
+                            if new_asset_id.strip() in all_asset_ids:
+                                st.error("Asset ID already exists!")
+                            else:
+                                new_row = pd.DataFrame([{"Asset ID": new_asset_id.strip(), "Category": new_category}])
+                                df_inv = pd.concat([df_inv, new_row], ignore_index=True)
+                                save_inventory(df_inv)
+                                st.success(f"Successfully added {new_asset_id.strip()}!")
+                                st.rerun()
+                        else:
+                            st.error("Please enter a valid Asset ID.")
+
+            with col_rem:
+                st.markdown("#### Remove Equipment")
+                with st.form("rem_equip_form"):
+                    rem_asset_id = st.selectbox("Select Asset ID to Remove", options=all_asset_ids)
+                    rem_submitted = st.form_submit_button("Remove Equipment")
+
+                    if rem_submitted:
+                        if rem_asset_id:
+                            df_inv = df_inv[df_inv["Asset ID"].astype(str) != str(rem_asset_id)]
+                            save_inventory(df_inv)
+                            st.success(f"Successfully removed {rem_asset_id}!")
+                            st.rerun()
+
+        with tab2:
+            st.subheader("Manually Assign Assessment Date")
+            with st.form("admin_assessment_form"):
+                target_asset = st.selectbox("Select Asset ID", options=all_asset_ids)
+                admin_ass_date = st.date_input("Assessment Date", value=datetime.date.today(), format="DD/MM/YYYY")
+                admin_ass_notes = st.text_area("Notes / Reason")
+                admin_ass_submitted = st.form_submit_button("Save Assessment Date")
+
+                if admin_ass_submitted:
+                    if target_asset:
+                        formatted_date = admin_ass_date.strftime("%d/%m/%Y")
+                        new_entry = pd.DataFrame([{
+                            "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "Action Type": "Admin Assessment Setup",
+                            "Instructor Name": "Admin",
+                            "Customer / Candidate Name": "Scheduled Assessment",
+                            "Equipment IDs": str(target_asset),
+                            "Assessment Date": formatted_date,
+                            "Inspection Result": "Not Inspected",
+                            "Notes / Damage Details": admin_ass_notes,
+                        }])
+                        save_log(new_entry)
+                        st.success(f"Assessment date {formatted_date} set for asset {target_asset}!")
+                        st.rerun()
+
+        with tab3:
+            st.subheader("Live Dashboard Display Settings")
+            st.write("Select which information columns you want displayed on the Live Dashboard:")
+
+            st.session_state.show_instructor = st.checkbox("Show Instructor Name", value=st.session_state.show_instructor)
+            st.session_state.show_customer = st.checkbox("Show Customer / Candidate Name", value=st.session_state.show_customer)
+            st.session_state.show_dates = st.checkbox("Show Dates (Check Out / Return / Assessment / Maintenance)", value=st.session_state.show_dates)
+            st.success("Dashboard view preferences updated successfully!")
+
+        with tab4:
+            st.subheader("Schedule Predetermined Kit Hire")
+            st.write("Book a kit hire in advance. The system will automatically apply the 'IN USE' status on the selected start date.")
+
+            with st.form("scheduled_hire_form"):
+                sched_instructor = st.text_input("Instructor Name")
+                sched_customer = st.text_input("Customer / Candidate Name")
+                sched_equipment = st.multiselect("Equipment IDs to Schedule", options=all_asset_ids)
+                sched_date = st.date_input("Kit Hire Start Date", value=datetime.date.today(), format="DD/MM/YYYY")
+                sched_notes = st.text_area("Booking Notes")
+                sched_submitted = st.form_submit_button("Schedule Kit Hire")
+
+                if sched_submitted:
+                    if sched_instructor and sched_equipment and sched_customer:
+                        eq_formatted = ", ".join(sched_equipment)
+                        new_entry = pd.DataFrame([{
+                            "Timestamp": sched_date.strftime("%Y-%m-%d 00:00:00"),
+                            "Action Type": "Scheduled Kit Hire",
+                            "Instructor Name": sched_instructor.strip(),
+                            "Customer / Candidate Name": sched_customer.strip(),
+                            "Equipment IDs": eq_formatted,
+                            "Assessment Date": "",
+                            "Inspection Result": "Not Inspected",
+                            "Notes / Damage Details": sched_notes,
+                        }])
+                        save_log(new_entry)
+                        st.success("Predetermined kit hire scheduled successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Please fill in Instructor Name, Customer Name, and select Equipment IDs.")
+
+        with tab5:
+            st.subheader("Damage & Maintenance History")
+            st.write("View the history of damage and maintenance reports logged for equipment.")
+
+            selected_asset_filter = st.selectbox(
+                "Filter by Asset ID",
+                options=["All Equipment"] + all_asset_ids,
+                key="maint_history_filter"
+            )
+
+            maint_logs = []
+            if not df_logs.empty:
+                for _, row in df_logs.iterrows():
+                    action = str(row.get("Action Type", ""))
+                    insp = str(row.get("Inspection Result", ""))
+                    notes = str(row.get("Notes / Damage Details", ""))
+                    if (
+                        action == "Report Damage / Maintenance"
+                        or ("Fail" in insp or "Maintenance" in insp)
+                        or (action == "Return Equipment" and notes.strip() and notes != "nan")
+                    ):
+                        maint_logs.append(row)
+
+            df_maint_history = pd.DataFrame(maint_logs) if maint_logs else pd.DataFrame(columns=df_logs.columns)
+
+            if not df_maint_history.empty:
+                if selected_asset_filter != "All Equipment":
+                    filtered_rows = []
+                    for _, row in df_maint_history.iterrows():
+                        eq_str = str(row.get("Equipment IDs", ""))
+                        eq_list = [e.strip() for e in eq_str.split(",") if e.strip()]
+                        if selected_asset_filter in eq_list:
+                            filtered_rows.append(row)
+                    df_display = pd.DataFrame(filtered_rows) if filtered_rows else pd.DataFrame(columns=df_maint_history.columns)
+                else:
+                    df_display = df_maint_history
+
+                if not df_display.empty:
+                    st.dataframe(df_display, use_container_width=True)
+                else:
+                    st.info(f"No damage or maintenance records found
