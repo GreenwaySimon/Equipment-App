@@ -46,15 +46,15 @@ def save_log(new_row_df):
 
 
 def run():
-  # Custom CSS Styling
+  # Responsive CSS Styling: Keeps desktop intact, optimizes mobile touch targets & font scaling
   st.markdown(
       """
     <style>
+    /* Default Desktop Button Styling */
     div.stButton > button {
-        font-size: 18px !important;
-        padding: 0.75rem 1rem !important;
-        width: 100% !important;
-        min-height: 50px !important;
+        font-size: 16px;
+        padding: 0.5rem 1rem;
+        min-height: 40px;
     }
     .metric-card {
         background-color: #f8f9fa;
@@ -62,6 +62,31 @@ def run():
         padding: 15px;
         text-align: center;
         border: 1px solid #dee2e6;
+    }
+
+    /* Mobile & Tablet Responsive Optimizations (Screen width <= 768px) */
+    @media (max-width: 768px) {
+        div.stButton > button {
+            font-size: 18px !important;
+            padding: 0.85rem 1rem !important;
+            width: 100% !important;
+            min-height: 55px !important;
+        }
+        .stSelectbox, .stMultiSelect, .stTextInput, .stDateInput {
+            font-size: 16px !important;
+        }
+        h1 {
+            font-size: 24px !important;
+        }
+        h2 {
+            font-size: 20px !important;
+        }
+        h3 {
+            font-size: 18px !important;
+        }
+        .stDataFrame {
+            font-size: 13px !important;
+        }
     }
     </style>
     """,
