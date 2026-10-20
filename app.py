@@ -114,7 +114,6 @@ def main():
     if "show_dates" not in st.session_state:
         st.session_state.show_dates = True
 
-    # Check mobile via User-Agent
     ua = ""
     try:
         ua = st.context.headers.get("User-Agent", "").lower()
@@ -155,7 +154,6 @@ def main():
         }
     }
     @media (max-width: 768px) {
-        /* Hide Admin Portal radio option on mobile */
         div.stRadio div[role="radiogroup"] label:nth-child(3) {
             display: none !important;
         }
@@ -190,9 +188,10 @@ def main():
         with st.expander("📖 Step-by-Step Instructions: How to Add to Mobile Home Screen", expanded=True):
             st.markdown("""
             **For iPhone / iPad (Safari):**
-            1. Tap the **Share** button at the bottom of your screen (square with an arrow pointing upward).
-            2. Scroll down and tap **"Add to Home Screen"**.
-            3. Tap **Add** in the top-right corner.
+            1. Open the app link in **Safari**.
+            2. Tap the **Share** button at the bottom of your screen (square with an arrow pointing upward).
+            3. Scroll down and tap **"Add to Home Screen"**.
+            4. Tap **Add** in the top-right corner.
 
             **For Android (Chrome):**
             1. Tap the **three vertical dots** in the top-right corner of Chrome.
@@ -211,7 +210,6 @@ def main():
 
     st.sidebar.title("Menu")
     
-    # Restrict navigation options based on device type
     nav_options = ["Equipment Hire Log", "Live Dashboard"]
     if not is_mobile_device:
         nav_options.append("Admin Portal")
@@ -457,7 +455,8 @@ def main():
                 if action_type == "Report Damage / Maintenance":
                     send_maintenance_email(new_entry_dict)
 
-                st.success("Log submitted successfully!")
+                st.success("✅ Success! Your equipment has been successfully logged.")
+                st.balloons()
                 st.rerun()
 
     elif nav_option == "Live Dashboard":
