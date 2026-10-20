@@ -508,4 +508,49 @@ def run():
       if val == "🟢 AVAILABLE":
         return "background-color: #d4edda; color: #155724; font-weight: bold;"
       elif val == "🔴 IN USE":
-        return "background-color:
+        return "background-color: #f8d7da; color: #721c24; font-weight: bold;"
+      elif val == "⚠️ MAINTENANCE":
+        return "background-color: #fff3cd; color: #856404; font-weight: bold;"
+      elif "RESERVED" in val:
+        return "background-color: #cce5ff; color: #004085; font-weight: bold;"
+      return ""
+
+    if not df_dashboard.empty:
+      if hasattr(df_dashboard.style, "map"):
+        styled_df = df_dashboard.style.map(
+            highlight_status, subset=["Status"]
+        )
+      else:
+        styled_df = df_dashboard.style.applymap(
+            highlight_status, subset=["Status"]
+        )
+      st.dataframe(styled_df, use_container_width=True)
+    else:
+      st.info("No asset inventory found.")
+
+  # ----------------------------------------------------
+  # SECTION 3: ADMIN PORTAL
+  # ----------------------------------------------------
+  elif nav_option == "Admin Portal":
+    st.header("Admin Management Portal")
+    st.write(
+        "Administrative controls for managing inventory, assessment dates,"
+        " dashboard views, and scheduled kit hires."
+    )
+
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Manage Equipment",
+        "Assessment Dates",
+        "Dashboard Views",
+        "Scheduled Kit Hire",
+    ])
+
+    with tab1:
+      st.subheader("Add or Remove Equipment")
+      col_add, col_rem = st.columns(2)
+
+      with col_add:
+        st.markdown("#### Add New Equipment")
+        with st.form("add_equip_form"):
+          new_asset_id = st.text_input("New Asset ID")
+          new_category = st.text_input("
