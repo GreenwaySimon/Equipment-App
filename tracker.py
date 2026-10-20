@@ -246,7 +246,7 @@ def run():
           key="input_eq_maint",
       )
 
-    # Side-by-side columns: Checkbox instantly opens date input next to it
+    # Side-by-side columns: Checkbox and Assessment Date formatted as dd/mm/yyyy
     col_cb, col_dt = st.columns([1, 1])
     with col_cb:
       include_assessment = st.checkbox(
@@ -261,6 +261,7 @@ def run():
         assessment_date_val = st.date_input(
             "Assessment Date",
             value=datetime.date.today(),
+            format="DD/MM/YYYY",
             key="input_assessment_date",
         )
         assessment_date_str = assessment_date_val.strftime("%d/%m/%Y")
