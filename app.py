@@ -185,10 +185,9 @@ def main():
         with st.expander("📖 Step-by-Step Instructions: How to Add to Mobile Home Screen", expanded=True):
             st.markdown("""
             **For iPhone / iPad (Safari):**
-            1. Open the app link in **Safari**.
-            2. Tap the **Share** button at the bottom of your screen (square with an arrow pointing upward).
-            3. Scroll down and tap **"Add to Home Screen"**.
-            4. Tap **Add** in the top-right corner.
+            1. Tap the **Share** button at the bottom of your screen (square with an arrow pointing upward).
+            2. Scroll down and tap **"Add to Home Screen"**.
+            3. Tap **Add** in the top-right corner.
 
             **For Android (Chrome):**
             1. Tap the **three vertical dots** in the top-right corner of Chrome.
@@ -468,7 +467,6 @@ def main():
     elif nav_option == "Live Dashboard":
         render_header("Live Dashboard")
 
-        # Display mobile-only refresh button at the top of the Live Dashboard
         if is_mobile_device:
             if st.button("🔄 Refresh Dashboard Data", use_container_width=True):
                 st.rerun()
@@ -666,61 +664,4 @@ def main():
                             "Equipment IDs": eq_formatted,
                             "Assessment Date": "",
                             "Inspection Result": "Not Inspected",
-                            "Notes / Damage Details": sched_notes,
-                        }])
-                        save_log(new_entry)
-                        st.success("Predetermined kit hire scheduled successfully!")
-                        st.rerun()
-                    else:
-                        st.error("Please fill in Instructor Name, Customer Name, and select Equipment IDs.")
-
-        with tab5:
-            st.subheader("Damage & Maintenance History")
-            st.write("View the history of damage and maintenance reports logged for equipment.")
-
-            selected_asset_filter = st.selectbox(
-                "Filter by Asset ID",
-                options=["All Equipment"] + all_asset_ids,
-                key="maint_history_filter"
-            )
-
-            maint_logs = []
-            if not df_logs.empty:
-                for _, row in df_logs.iterrows():
-                    action = str(row.get("Action Type", ""))
-                    insp = str(row.get("Inspection Result", ""))
-                    notes = str(row.get("Notes / Damage Details", ""))
-                    if (
-                        action == "Report Damage / Maintenance"
-                        or ("Fail" in insp or "Maintenance" in insp)
-                        or (action == "Return Equipment" and notes.strip() and notes != "nan")
-                    ):
-                        maint_logs.append(row)
-
-            df_maint_history = pd.DataFrame(maint_logs) if maint_logs else pd.DataFrame(columns=df_logs.columns)
-
-            if not df_maint_history.empty:
-                if selected_asset_filter != "All Equipment":
-                    filtered_rows = []
-                    for _, row in df_maint_history.iterrows():
-                        eq_str = str(row.get("Equipment IDs", ""))
-                        eq_list = [e.strip() for e in eq_str.split(",") if e.strip()]
-                        if selected_asset_filter in eq_list:
-                            filtered_rows.append(row)
-                    df_display = pd.DataFrame(filtered_rows) if filtered_rows else pd.DataFrame(columns=df_maint_history.columns)
-                else:
-                    df_display = df_maint_history
-
-                if not df_display.empty:
-                    st.dataframe(df_display, use_container_width=True)
-                else:
-                    st.info(f"No damage or maintenance records found for {selected_asset_filter}.")
-            else:
-                st.info("No damage or maintenance reports have been logged in the system yet.")
-
-        with tab6:
-            st.subheader("Printable Mobile Home Screen Guide")
-            st.write("Use this page to print or save instructions for instructors on how to bookmark the inventory app onto their phone home screens.")
-
-            st.markdown("""
-            <div class="printable-card" style="border: 1px solid #ccc; padding: 25px; border-radius: 8px; background-color: #fff;">
+                            "Notes / Damage Details": sched_
