@@ -109,6 +109,13 @@ def main():
     if "show_dates" not in st.session_state:
         st.session_state.show_dates = True
 
+    ua = ""
+    try:
+        ua = st.context.headers.get("User-Agent", "").lower()
+    except Exception:
+        pass
+    is_mobile_device = any(k in ua for k in ["mobi", "android", "iphone", "ipad", "ipod"])
+
     st.markdown(
         """
     <style>
@@ -271,7 +278,8 @@ def main():
         if os.path.exists(LOGO_FILE):
             col_logo, col_title = st.columns([1, 4])
             with col_logo:
-                st.image(LOGO_FILE, width=130)
+                logo_width = 90 if is_mobile_device else 130
+                st.image(LOGO_FILE, width=logo_width)
             with col_title:
                 st.title(title_text)
         else:
@@ -445,9 +453,10 @@ def main():
     elif nav_option == "Live Dashboard":
         render_header("Live Dashboard")
 
-        if st.button("🔄 Refresh Dashboard Data", use_container_width=True):
-            st.rerun()
-        st.markdown("---")
+        if is_mobile_device:
+            if st.button("🔄 Refresh Dashboard Data", use_container_width=True):
+                st.rerun()
+            st.markdown("---")
 
         dashboard_rows = []
         for aid in all_asset_ids:
@@ -711,8 +720,4 @@ def main():
             st.markdown("4. Tap **Install** or **Add** to confirm.")
             
             st.markdown("---")
-            st.info("💡 **Tip:** Press **Ctrl + P** (Windows) or **Cmd + P** (Mac) on your keyboard while viewing this tab to print this guide directly or save it as a PDF.")
-
-
-if __name__ == "__main__":
-    main()
+            st.info("💡 **Tip:** Press **Ctrl + P** (Windows) or **
