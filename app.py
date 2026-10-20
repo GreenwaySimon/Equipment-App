@@ -151,12 +151,6 @@ def main():
     @media print {
         body { background: white; color: black; }
         .stSidebar, nav, header, button { display: none !important; }
-        .printable-card {
-            border: 2px solid #333 !important;
-            padding: 20px !important;
-            margin: 20px 0 !important;
-            border-radius: 8px !important;
-        }
     }
     @media (max-width: 768px) {
         .stDataFrame { 
@@ -749,23 +743,26 @@ def main():
             st.subheader("Printable Mobile Home Screen Guide")
             st.write("Use this page to print or save instructions for instructors on how to bookmark the inventory app onto their phone home screens.")
 
-            st.markdown(
-                """
-            <div class="printable-card" style="border: 1px solid #ccc; padding: 25px; border-radius: 8px; background-color: #fff;">
-                <h2>🪵 Greenway Training - Mobile Equipment Hub</h2>
-                <p><strong>Quick Access Guide for Field Instructors</strong></p>
-                <p>To log equipment hires and damage reports quickly out in the field without typing web addresses, add this app directly to your phone's home screen.</p>
-                <hr style="margin: 15px 0;">
-                <h3>📱 iPhone / iPad (Safari)</h3>
-                <ol>
-                    <li>Open the app link in <strong>Safari</strong>.</li>
-                    <li>Tap the <strong>Share</strong> button at the bottom toolbar (square with an arrow pointing up).</li>
-                    <li>Scroll down and select <strong>"Add to Home Screen"</strong>.</li>
-                    <li>Tap <strong>Add</strong> in the top-right corner. An icon will appear on your home screen.</li>
-                </ol>
-                <br>
-                <h3>🤖 Android (Chrome)</h3>
-                <ol>
-                    <li>Open the app link in <strong>Google Chrome</strong>.</li>
-                    <li>Tap the <strong>three vertical dots</strong> in the top-right corner.</li>
-                    <li>Select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</li>
+            st.markdown("### 🪵 Greenway Training - Mobile Equipment Hub")
+            st.markdown("**Quick Access Guide for Field Instructors**")
+            st.write("To log equipment hires and damage reports quickly out in the field without typing web addresses, add this app directly to your phone's home screen.")
+            
+            st.markdown("---")
+            st.markdown("#### 📱 iPhone / iPad (Safari)")
+            st.markdown("1. Open the app link in **Safari**.")
+            st.markdown("2. Tap the **Share** button at the bottom toolbar (square with an arrow pointing up).")
+            st.markdown("3. Scroll down and select **'Add to Home Screen'**.")
+            st.markdown("4. Tap **Add** in the top-right corner. An icon will appear on your home screen.")
+
+            st.markdown("#### 🤖 Android (Chrome)")
+            st.markdown("1. Open the app link in **Google Chrome**.")
+            st.markdown("2. Tap the **three vertical dots** in the top-right corner.")
+            st.markdown("3. Select **'Add to Home screen'** or **'Install app'**.")
+            st.markdown("4. Tap **Install** or **Add** to confirm.")
+            
+            st.markdown("---")
+            st.info("💡 **Tip:** Press **Ctrl + P** (Windows) or **Cmd + P** (Mac) on your keyboard while viewing this tab to print this guide directly or save it as a PDF.")
+
+
+if __name__ == "__main__":
+    main()
