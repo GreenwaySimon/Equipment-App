@@ -127,14 +127,20 @@ def main():
     st.markdown(
         """
     <style>
+    /* Full-screen mobile enhancements */
+    header {visibility: hidden;}
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 0.5rem !important;
         padding-bottom: 2rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }
     div.stButton > button {
-        font-size: 16px;
-        padding: 0.5rem 1rem;
-        min-height: 40px;
+        font-size: 18px !important;
+        padding: 0.75rem 1rem;
+        min-height: 50px;
+        width: 100% !important;
+        border-radius: 8px;
     }
     .metric-card {
         background-color: #f8f9fa;
@@ -154,19 +160,15 @@ def main():
         }
     }
     @media (max-width: 768px) {
-        div.stButton > button {
-            font-size: 18px !important;
-            padding: 0.85rem 1rem !important;
-            width: 100% !important;
-            min-height: 55px !important;
+        .stDataFrame { 
+            font-size: 14px !important; 
         }
-        .stSelectbox, .stMultiSelect, .stTextInput, .stDateInput {
+        .stSelectbox, .stMultiSelect, .stTextInput, .stDateInput, .stTextArea {
             font-size: 16px !important;
         }
-        h1 { font-size: 22px !important; }
+        h1 { font-size: 24px !important; }
         h2 { font-size: 20px !important; }
         h3 { font-size: 18px !important; }
-        .stDataFrame { font-size: 13px !important; }
     }
     </style>
     """,
@@ -337,9 +339,6 @@ def main():
             "⚠️ Report Damage",
         ])
 
-        # ----------------------------------------------------
-        # TAB 1: CHECK OUT
-        # ----------------------------------------------------
         with log_tab_checkout:
             st.subheader("Check Out Equipment")
             with st.form("checkout_form_sub"):
@@ -395,14 +394,11 @@ def main():
                             "Notes / Damage Details": co_notes.strip(),
                         }
                         save_log(pd.DataFrame([new_entry_dict]))
-                        st.success("✅ Success! Equipment checked out successfully.")
+                        st.success("✅ Success! Your equipment has been successfully logged.")
                         st.balloons()
                         st.session_state.redirect_to_dashboard = True
                         st.rerun()
 
-        # ----------------------------------------------------
-        # TAB 2: RETURN EQUIPMENT (WITH SMART MATCHING)
-        # ----------------------------------------------------
         with log_tab_return:
             st.subheader("Return Equipment")
             active_customers = list(customer_to_equipment_map.keys())
@@ -412,7 +408,6 @@ def main():
                     ret_instructor = st.text_input("Instructor Name", key="ret_inst")
                     ret_customer = st.selectbox("Customer / Candidate Name", options=active_customers, key="ret_cust_sel")
                     
-                    # Smart matching: auto-populate all equipment currently held by this customer
                     default_checked_out = customer_to_equipment_map.get(ret_customer, [])
                     ret_equipment = st.multiselect(
                         "Equipment IDs to Return (Pre-selected automatically)",
@@ -452,16 +447,13 @@ def main():
                             if "Fail" in ret_inspection or "Maintenance" in ret_inspection:
                                 send_maintenance_email(new_entry_dict)
 
-                            st.success("✅ Success! Equipment return logged successfully.")
+                            st.success("✅ Success! Your equipment has been successfully logged.")
                             st.balloons()
                             st.session_state.redirect_to_dashboard = True
                             st.rerun()
             else:
                 st.info("No customers currently have equipment checked out to return.")
 
-        # ----------------------------------------------------
-        # TAB 3: REPORT DAMAGE / MAINTENANCE
-        # ----------------------------------------------------
         with log_tab_damage:
             st.subheader("Report Damage or Maintenance")
             with st.form("damage_form_sub"):
@@ -497,7 +489,7 @@ def main():
                         save_log(pd.DataFrame([new_entry_dict]))
                         send_maintenance_email(new_entry_dict)
 
-                        st.success("✅ Success! Damage report logged and emails sent to Simon & Rob.")
+                        st.success("✅ Success! Your equipment has been successfully logged.")
                         st.balloons()
                         st.session_state.redirect_to_dashboard = True
                         st.rerun()
@@ -755,41 +747,4 @@ def main():
                 st.info("No damage or maintenance reports have been logged in the system yet.")
 
         with tab6:
-            st.subheader("Printable Mobile Home Screen Guide")
-            st.write("Use this page to print or save instructions for instructors on how to bookmark the inventory app onto their phone home screens.")
-
-            st.markdown(
-                """
-            <div class="printable-card" style="border: 1px solid #ccc; padding: 25px; border-radius: 8px; background-color: #fff;">
-                <h2>🪵 Greenway Training - Mobile Equipment Hub</h2>
-                <p><strong>Quick Access Guide for Field Instructors</strong></p>
-                <p>To log equipment hires and damage reports quickly out in the field without typing web addresses, add this app directly to your phone's home screen.</p>
-                <hr style="margin: 15px 0;">
-                <h3>📱 iPhone / iPad (Safari)</h3>
-                <ol>
-                    <li>Open the app link in <strong>Safari</strong>.</li>
-                    <li>Tap the <strong>Share</strong> button at the bottom toolbar (square with an arrow pointing up).</li>
-                    <li>Scroll down and select <strong>"Add to Home Screen"</strong>.</li>
-                    <li>Tap <strong>Add</strong> in the top-right corner. An icon will appear on your home screen.</li>
-                </ol>
-                <br>
-                <h3>🤖 Android (Chrome)</h3>
-                <ol>
-                    <li>Open the app link in <strong>Google Chrome</strong>.</li>
-                    <li>Tap the <strong>three vertical dots</strong> in the top-right corner.</li>
-                    <li>Select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</li>
-                    <li>Tap <strong>Install</strong> or <strong>Add</strong> to confirm.</li>
-                </ol>
-                <hr style="margin: 15px 0;">
-                <p style="font-size: 12px; color: #666; text-align: center;">Greenway Training Inventory Management System • Contact admin for support.</p>
-            </div>
-            """,
-                unsafe_allow_html=True,
-            )
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.info("💡 **Tip:** Press **Ctrl + P** (Windows) or **Cmd + P** (Mac) on your keyboard while viewing this tab to print this guide directly or save it as a PDF.")
-
-
-if __name__ == "__main__":
-    main()
+            st.subheader("Print
