@@ -238,16 +238,20 @@ def run():
             options=all_asset_ids if all_asset_ids else [],
         )
 
-      # Dynamic Assessment Date box opening immediately upon ticking checkbox
-      include_assessment = st.checkbox(
-          "Include Assessment Date (Optional)", value=False
-      )
+      # Side-by-side columns for Checkbox and Assessment Date box
+      col_cb, col_dt = st.columns([1, 1])
+      with col_cb:
+        include_assessment = st.checkbox(
+            "Include Assessment Date (Optional)", value=False
+        )
+
       assessment_date_str = ""
       if include_assessment:
-        assessment_date_val = st.date_input(
-            "Assessment Date", value=datetime.date.today()
-        )
-        assessment_date_str = assessment_date_val.strftime("%d/%m/%Y")
+        with col_dt:
+          assessment_date_val = st.date_input(
+              "Assessment Date", value=datetime.date.today()
+          )
+          assessment_date_str = assessment_date_val.strftime("%d/%m/%Y")
 
       inspection_result = st.selectbox(
           "Inspection Result",
