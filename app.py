@@ -114,13 +114,15 @@ def main():
     if "show_dates" not in st.session_state:
         st.session_state.show_dates = True
 
+    # Check mobile via User-Agent
+    ua = ""
+    try:
+        ua = st.context.headers.get("User-Agent", "").lower()
+    except Exception:
+        pass
+    is_mobile_device = any(k in ua for k in ["mobi", "android", "iphone", "ipad", "ipod"])
+
     if "welcome_dismissed" not in st.session_state:
-        ua = ""
-        try:
-            ua = st.context.headers.get("User-Agent", "").lower()
-        except Exception:
-            pass
-        is_mobile_device = any(k in ua for k in ["mobi", "android", "iphone", "ipad", "ipod"])
         st.session_state.show_welcome = is_mobile_device
 
     st.markdown(
@@ -153,6 +155,7 @@ def main():
         }
     }
     @media (max-width: 768px) {
+        /* Hide Admin Portal radio option on mobile */
         div.stRadio div[role="radiogroup"] label:nth-child(3) {
             display: none !important;
         }
@@ -207,10 +210,13 @@ def main():
     df_inv, df_logs = load_inventory_and_logs()
 
     st.sidebar.title("Menu")
-    nav_option = st.sidebar.radio(
-        "Navigation",
-        ["Equipment Hire Log", "Live Dashboard", "Admin Portal"],
-    )
+    
+    # Restrict navigation options based on device type
+    nav_options = ["Equipment Hire Log", "Live Dashboard"]
+    if not is_mobile_device:
+        nav_options.append("Admin Portal")
+
+    nav_option = st.sidebar.radio("Navigation", nav_options)
 
     today = datetime.date.today()
 
@@ -539,6 +545,10 @@ def main():
             st.info("No asset inventory found.")
 
     elif nav_option == "Admin Portal":
+        if is_mobile_device:
+            st.warning("Admin Portal is only accessible from desktop computers.")
+            return
+
         render_header("Admin Management Portal")
         st.write("Administrative controls for managing inventory, assessment dates, dashboard views, scheduled kit hires, maintenance history, and mobile guides.")
 
@@ -720,7 +730,7 @@ def main():
                     <li>Open the app link in <strong>Google Chrome</strong>.</li>
                     <li>Tap the <strong>three vertical dots</strong> in the top-right corner.</li>
                     <li>Select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</li>
-                    <li>Tap <strong>Install</strong> or N/A to confirm.</li>
+                    <li>Tap <strong>Install</strong> or <strong>Add</strong> to confirm.</li>
                 </ol>
                 <hr style="margin: 15px 0;">
                 <p style="font-size: 12px; color: #666; text-align: center;">Greenway Training Inventory Management System • Contact admin for support.</p>
