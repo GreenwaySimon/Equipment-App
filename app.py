@@ -231,4 +231,104 @@ def main():
                     d["assessment_date"] = ass_dt_log.strip()
 
                 if action in ["Check Out", "Scheduled Kit Hire"]:
-                    d["status"] = "🔴 IN
+                    d["status"] = "🔴 IN USE"
+                    d["checkout_date"] = date_val
+                    d["return_date"] = "Pending"
+                elif action == "Return Equipment":
+                    insp = str(row.get("Inspection Result", ""))
+                    d["return_date"] = date_val
+                    d["customer"] = ""
+                    if "Fail" in insp or "Maintenance" in insp:
+                        d["status"] = "⚠️ MAINTENANCE"
+                        d["reported_date"] = date_val
+                        d["repaired_date"] = "Pending"
+                    else:
+                        is_reserved = False
+                        if d["assessment_date"]:
+                            try:
+                                ass_parsed = datetime.datetime.strptime(
+                                    d["assessment_date"], "%d/%m/%Y"
+                                ).date()
+                                if today <= ass_parsed:
+                                    is_reserved = True
+                            except Exception:
+                                pass
+
+                        if is_reserved:
+                            d["status"] = f"📅 RESERVED ({d['assessment_date']})"
+                        else:
+                            d["status"] = "🟢 AVAILABLE"
+                elif action == "Report Damage / Maintenance":
+                    d["status"] = "⚠️ MAINTENANCE"
+                    d["reported_date"] = date_val
+                    d["repaired_date"] = "Pending"
+
+    for aid, info in asset_data_map.items():
+        if "RESERVED" in info["status"]:
+            if info["assessment_date"]:
+                try:
+                    ass_parsed = datetime.datetime.strptime(
+                        info["assessment_date"], "%d/%m/%Y"
+                    ).date()
+                    if today > ass_parsed:
+                        info["status"] = "🟢 AVAILABLE"
+                except Exception:
+                    pass
+
+    for aid, info in asset_data_map.items():
+        if info["status"] == "🔴 IN USE" and info["customer"]:
+            c_name = info["customer"]
+            if c_name not in customer_to_equipment_map:
+                customer_to_equipment_map[c_name] = []
+            if aid not in customer_to_equipment_map[c_name]:
+                customer_to_equipment_map[c_name].append(aid)
+
+    all_asset_ids = []
+    if not df_inv.empty and "Asset ID" in df_inv.columns:
+        all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
+
+    def render_header(title_text):
+        if os.path.exists(LOGO_FILE):
+            col_logo, col_title = st.columns([1, 4])
+            with col_logo:
+                st.image(LOGO_FILE, width=130)
+            with col_title:
+                st.title(title_text)
+        else:
+            st.title(title_text)
+
+    if nav_option == "Equipment Hire Log":
+        render_header("Equipment Hire Log")
+        st.write("Select the operation tab below to record an entry.")
+
+        log_tab_checkout, log_tab_return, log_tab_damage = st.tabs([
+            "📤 Check Out",
+            "📥 Return Equipment",
+            "⚠️ Report Damage",
+        ])
+
+        with log_tab_checkout:
+            st.subheader("Check Out Equipment")
+            with st.form("checkout_form_sub"):
+                co_instructor = st.text_input("Instructor Name", key="co_inst")
+                co_customer = st.text_input("Customer / Candidate Name", key="co_cust")
+                co_equipment = st.multiselect(
+                    "Equipment IDs (Available Equipment)",
+                    options=all_asset_ids if all_asset_ids else [],
+                    key="co_eq",
+                )
+
+                co_col_cb, co_col_dt = st.columns([1, 1])
+                with co_col_cb:
+                    co_include_ass = st.checkbox("Include Assessment Date (Optional)", value=False, key="co_inc_ass")
+                
+                co_ass_date_str = ""
+                if co_include_ass:
+                    with co_col_dt:
+                        co_ass_val = st.date_input("Assessment Date", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
+                        co_ass_date_str = co_ass_val.strftime("%d/%m/%Y")
+
+                co_notes = st.text_area("Notes / Booking Details", key="co_notes")
+                co_submitted = st.form_submit_button("Submit Check Out")
+
+                has
