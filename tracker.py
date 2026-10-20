@@ -149,6 +149,18 @@ def run():
         border: 1px solid #dee2e6;
     }
 
+    /* Print styling rules for the printable guide */
+    @media print {
+        body { background: white; color: black; }
+        .stSidebar, nav, header, button { display: none !important; }
+        .printable-card {
+            border: 2px solid #333 !important;
+            padding: 20px !important;
+            margin: 20px 0 !important;
+            border-radius: 8px !important;
+        }
+    }
+
     /* Mobile & Tablet Optimizations & Admin Portal Hiding */
     @media (max-width: 768px) {
         div.stRadio div[role="radiogroup"] label:nth-child(3) {
@@ -174,16 +186,16 @@ def run():
     )
 
     # ----------------------------------------------------
-    # WELCOME / MOBILE HOME SCREEN GUIDE SCREEN
+    # WELCOME / MOBILE HOME SCREEN GUIDE SCREEN (Mobile Only)
     # ----------------------------------------------------
     if st.session_state.get("show_welcome", False):
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, width=220)
         
         st.title("Greenway Training Inventory Hub")
-        st.write("Welcome! Streamlined equipment tracking and safety logs for instructors and administrators.")
+        st.write("Welcome! Streamlined equipment tracking and safety logs for field instructors.")
         
-        st.info("📱 **Tip for Field Instructors:** Add this app directly to your mobile phone's home screen so you can access it instantly like a regular app without typing web addresses.")
+        st.info("📱 **Quick Tip:** Add this app directly to your mobile phone's home screen so you can access it instantly like a native app without typing web addresses.")
         
         with st.expander("📖 Step-by-Step Instructions: How to Add to Mobile Home Screen", expanded=True):
             st.markdown("""
@@ -213,11 +225,6 @@ def run():
         "Navigation",
         ["Equipment Hire Log", "Live Dashboard", "Admin Portal"],
     )
-
-    st.sidebar.markdown("---")
-    if st.sidebar.button("📱 Mobile Home Screen Guide", use_container_width=True):
-        st.session_state.show_welcome = True
-        st.rerun()
 
     today = datetime.date.today()
 
@@ -597,187 +604,20 @@ def run():
         render_header("Admin Management Portal")
         st.write(
             "Administrative controls for managing inventory, assessment dates,"
-            " dashboard views, scheduled kit hires, and maintenance history."
+            " dashboard views, scheduled kit hires, maintenance history, and mobile guides."
         )
 
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             "Manage Equipment",
             "Assessment Dates",
             "Dashboard Views",
             "Scheduled Kit Hire",
             "Maintenance History",
+            "Mobile App Guide",
         ])
 
         with tab1:
             st.subheader("Add or Remove Equipment")
             col_add, col_rem = st.columns(2)
 
-            with col_add:
-                st.markdown("#### Add New Equipment")
-                with st.form("add_equip_form"):
-                    new_asset_id = st.text_input("New Asset ID")
-                    new_category = st.text_input("Category (e.g., Chainsaw, PPE)")
-                    add_submitted = st.form_submit_button("Add Equipment")
-
-                    if add_submitted:
-                        if new_asset_id.strip():
-                            if new_asset_id.strip() in all_asset_ids:
-                                st.error("Asset ID already exists!")
-                            else:
-                                new_row = pd.DataFrame(
-                                    [{"Asset ID": new_asset_id.strip(), "Category": new_category}]
-                                )
-                                df_inv = pd.concat([df_inv, new_row], ignore_index=True)
-                                save_inventory(df_inv)
-                                st.success(f"Successfully added {new_asset_id.strip()}!")
-                                st.rerun()
-                        else:
-                            st.error("Please enter a valid Asset ID.")
-
-            with col_rem:
-                st.markdown("#### Remove Equipment")
-                with st.form("rem_equip_form"):
-                    rem_asset_id = st.selectbox(
-                        "Select Asset ID to Remove", options=all_asset_ids
-                    )
-                    rem_submitted = st.form_submit_button("Remove Equipment")
-
-                    if rem_submitted:
-                        if rem_asset_id:
-                            df_inv = df_inv[df_inv["Asset ID"].astype(str) != str(rem_asset_id)]
-                            save_inventory(df_inv)
-                            st.success(f"Successfully removed {rem_asset_id}!")
-                            st.rerun()
-
-        with tab2:
-            st.subheader("Manually Assign Assessment Date")
-            with st.form("admin_assessment_form"):
-                target_asset = st.selectbox("Select Asset ID", options=all_asset_ids)
-                admin_ass_date = st.date_input(
-                    "Assessment Date", value=datetime.date.today(), format="DD/MM/YYYY"
-                )
-                admin_ass_notes = st.text_area("Notes / Reason")
-                admin_ass_submitted = st.form_submit_button("Save Assessment Date")
-
-                if admin_ass_submitted:
-                    if target_asset:
-                        formatted_date = admin_ass_date.strftime("%d/%m/%Y")
-                        new_entry = pd.DataFrame([{
-                            "Timestamp": datetime.datetime.now().strftime(
-                                "%Y-%m-%d %H:%M:%S"
-                            ),
-                            "Action Type": "Admin Assessment Setup",
-                            "Instructor Name": "Admin",
-                            "Customer / Candidate Name": "Scheduled Assessment",
-                            "Equipment IDs": str(target_asset),
-                            "Assessment Date": formatted_date,
-                            "Inspection Result": "Not Inspected",
-                            "Notes / Damage Details": admin_ass_notes,
-                        }])
-                        save_log(new_entry)
-                        st.success(
-                            f"Assessment date {formatted_date} set for asset"
-                            f" {target_asset}!"
-                        )
-                        st.rerun()
-
-        with tab3:
-            st.subheader("Live Dashboard Display Settings")
-            st.write("Select which information columns you want displayed on the Live Dashboard:")
-
-            st.session_state.show_instructor = st.checkbox(
-                "Show Instructor Name", value=st.session_state.show_instructor
-            )
-            st.session_state.show_customer = st.checkbox(
-                "Show Customer / Candidate Name", value=st.session_state.show_customer
-            )
-            st.session_state.show_dates = st.checkbox(
-                "Show Dates (Check Out / Return / Assessment / Maintenance)",
-                value=st.session_state.show_dates,
-            )
-            st.success("Dashboard view preferences updated successfully!")
-
-        with tab4:
-            st.subheader("Schedule Predetermined Kit Hire")
-            st.write(
-                "Book a kit hire in advance. The system will automatically apply the"
-                " 'IN USE' status on the selected start date."
-            )
-
-            with st.form("scheduled_hire_form"):
-                sched_instructor = st.text_input("Instructor Name")
-                sched_customer = st.text_input("Customer / Candidate Name")
-                sched_equipment = st.multiselect(
-                    "Equipment IDs to Schedule", options=all_asset_ids
-                )
-                sched_date = st.date_input(
-                    "Kit Hire Start Date", value=datetime.date.today(), format="DD/MM/YYYY"
-                )
-                sched_notes = st.text_area("Booking Notes")
-                sched_submitted = st.form_submit_button("Schedule Kit Hire")
-
-                if sched_submitted:
-                    if sched_instructor and sched_equipment and sched_customer:
-                        eq_formatted = ", ".join(sched_equipment)
-                        new_entry = pd.DataFrame([{
-                            "Timestamp": sched_date.strftime("%Y-%m-%d 00:00:00"),
-                            "Action Type": "Scheduled Kit Hire",
-                            "Instructor Name": sched_instructor.strip(),
-                            "Customer / Candidate Name": sched_customer.strip(),
-                            "Equipment IDs": eq_formatted,
-                            "Assessment Date": "",
-                            "Inspection Result": "Not Inspected",
-                            "Notes / Damage Details": sched_notes,
-                        }])
-                        save_log(new_entry)
-                        st.success("Predetermined kit hire scheduled successfully!")
-                        st.rerun()
-                    else:
-                        st.error(
-                            "Please fill in Instructor Name, Customer Name, and select"
-                            " Equipment IDs."
-                        )
-
-        with tab5:
-            st.subheader("Damage & Maintenance History")
-            st.write("View the history of damage and maintenance reports logged for equipment.")
-
-            selected_asset_filter = st.selectbox(
-                "Filter by Asset ID",
-                options=["All Equipment"] + all_asset_ids,
-                key="maint_history_filter"
-            )
-
-            maint_logs = []
-            if not df_logs.empty:
-                for _, row in df_logs.iterrows():
-                    action = str(row.get("Action Type", ""))
-                    insp = str(row.get("Inspection Result", ""))
-                    notes = str(row.get("Notes / Damage Details", ""))
-                    if (
-                        action == "Report Damage / Maintenance"
-                        or ("Fail" in insp or "Maintenance" in insp)
-                        or (action == "Return Equipment" and notes.strip() and notes != "nan")
-                    ):
-                        maint_logs.append(row)
-
-            df_maint_history = pd.DataFrame(maint_logs) if maint_logs else pd.DataFrame(columns=df_logs.columns)
-
-            if not df_maint_history.empty:
-                if selected_asset_filter != "All Equipment":
-                    filtered_rows = []
-                    for _, row in df_maint_history.iterrows():
-                        eq_str = str(row.get("Equipment IDs", ""))
-                        eq_list = [e.strip() for e in eq_str.split(",") if e.strip()]
-                        if selected_asset_filter in eq_list:
-                            filtered_rows.append(row)
-                    df_display = pd.DataFrame(filtered_rows) if filtered_rows else pd.DataFrame(columns=df_maint_history.columns)
-                else:
-                    df_display = df_maint_history
-
-                if not df_display.empty:
-                    st.dataframe(df_display, use_container_width=True)
-                else:
-                    st.info(f"No damage or maintenance records found for {selected_asset_filter}.")
-            else:
-                st.info("No damage or maintenance reports have been logged in the system yet.")
+            with col
