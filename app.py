@@ -573,45 +573,4 @@ def main():
             with col_rem:
                 st.markdown("#### Remove Equipment")
                 with st.form("rem_equip_form"):
-                    rem_asset_id = st.selectbox("Select Asset ID to Remove", options=all_asset_ids)
-                    rem_submitted = st.form_submit_button("Remove Equipment")
-
-                    if rem_submitted:
-                        if rem_asset_id:
-                            df_inv = df_inv[df_inv["Asset ID"].astype(str) != str(rem_asset_id)]
-                            save_inventory(df_inv)
-                            st.success(f"Successfully removed {rem_asset_id}!")
-                            st.rerun()
-
-        with tab2:
-            st.subheader("Manually Assign Assessment Date")
-            with st.form("admin_assessment_form"):
-                target_asset = st.selectbox("Select Asset ID", options=all_asset_ids)
-                admin_ass_date = st.date_input("Assessment Date", value=datetime.date.today(), format="DD/MM/YYYY")
-                admin_ass_notes = st.text_area("Notes / Reason")
-                admin_ass_submitted = st.form_submit_button("Save Assessment Date")
-
-                if admin_ass_submitted:
-                    if target_asset:
-                        formatted_date = admin_ass_date.strftime("%d/%m/%Y")
-                        new_entry = pd.DataFrame([{
-                            "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "Action Type": "Admin Assessment Setup",
-                            "Instructor Name": "Admin",
-                            "Customer / Candidate Name": "Scheduled Assessment",
-                            "Equipment IDs": str(target_asset),
-                            "Assessment Date": formatted_date,
-                            "Inspection Result": "Not Inspected",
-                            "Notes / Damage Details": admin_ass_notes,
-                        }])
-                        save_log(new_entry)
-                        st.success(f"Assessment date {formatted_date} set for asset {target_asset}!")
-                        st.rerun()
-
-        with tab3:
-            st.subheader("Live Dashboard Display Settings")
-            st.write("Select which information columns you want displayed on the Live Dashboard:")
-
-            st.session_state.show_instructor = st.checkbox("Show Instructor Name", value=st.session_state.show_instructor)
-            st.session_state.show_customer = st.checkbox("Show Customer / Candidate Name", value=st.session_state.show_customer)
-            st.session_state.show_dates = st.checkbox("Show Dates (Check Out / Return / Assessment / Maintenance)", value=st.session
+                    rem_asset_id = st.selectbox("Select Asset ID to Remove", options
