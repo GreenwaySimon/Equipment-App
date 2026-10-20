@@ -153,7 +153,7 @@ def run():
         .stSelectbox, .stMultiSelect, .stTextInput, .stDateInput {
             font-size: 16px !important;
         }
-        h1 { font-size: 24px !important; }
+        h1 { font-size: 22px !important; }
         h2 { font-size: 20px !important; }
         h3 { font-size: 18px !important; }
         .stDataFrame { font-size: 13px !important; }
@@ -273,13 +273,22 @@ def run():
     if not df_inv.empty and "Asset ID" in df_inv.columns:
         all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
 
+    # Helper function for in-line header rendering (Logo + Title)
+    def render_header(title_text):
+        if os.path.exists(LOGO_FILE):
+            col_logo, col_title = st.columns([1, 4])
+            with col_logo:
+                st.image(LOGO_FILE, width=130)
+            with col_title:
+                st.title(title_text)
+        else:
+            st.title(title_text)
+
     # ----------------------------------------------------
     # SECTION 1: EQUIPMENT HIRE LOG
     # ----------------------------------------------------
     if nav_option == "Equipment Hire Log":
-        if os.path.exists(LOGO_FILE):
-            st.image(LOGO_FILE, width=220)
-        st.title("Equipment Hire Log")
+        render_header("Equipment Hire Log")
         st.write("Fill out the form below to record an entry.")
 
         action_type = st.selectbox(
@@ -428,9 +437,7 @@ def run():
     # SECTION 2: LIVE DASHBOARD
     # ----------------------------------------------------
     elif nav_option == "Live Dashboard":
-        if os.path.exists(LOGO_FILE):
-            st.image(LOGO_FILE, width=220)
-        st.title("Live Dashboard")
+        render_header("Live Dashboard")
 
         dashboard_rows = []
         for aid in all_asset_ids:
@@ -540,9 +547,7 @@ def run():
     # SECTION 3: ADMIN PORTAL
     # ----------------------------------------------------
     elif nav_option == "Admin Portal":
-        if os.path.exists(LOGO_FILE):
-            st.image(LOGO_FILE, width=220)
-        st.title("Admin Management Portal")
+        render_header("Admin Management Portal")
         st.write(
             "Administrative controls for managing inventory, assessment dates,"
             " dashboard views, and scheduled kit hires."
