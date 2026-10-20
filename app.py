@@ -664,4 +664,94 @@ def main():
                             "Equipment IDs": eq_formatted,
                             "Assessment Date": "",
                             "Inspection Result": "Not Inspected",
-                            "Notes / Damage Details": sched_
+                            "Notes / Damage Details": sched_notes,
+                        }])
+                        save_log(new_entry)
+                        st.success("Predetermined kit hire scheduled successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Please fill in Instructor Name, Customer Name, and select Equipment IDs.")
+
+        with tab5:
+            st.subheader("Damage & Maintenance History")
+            st.write("View the history of damage and maintenance reports logged for equipment.")
+
+            selected_asset_filter = st.selectbox(
+                "Filter by Asset ID",
+                options=["All Equipment"] + all_asset_ids,
+                key="maint_history_filter"
+            )
+
+            maint_logs = []
+            if not df_logs.empty:
+                for _, row in df_logs.iterrows():
+                    action = str(row.get("Action Type", ""))
+                    insp = str(row.get("Inspection Result", ""))
+                    notes = str(row.get("Notes / Damage Details", ""))
+                    if (
+                        action == "Report Damage / Maintenance"
+                        or ("Fail" in insp or "Maintenance" in insp)
+                        or (action == "Return Equipment" and notes.strip() and notes != "nan")
+                    ):
+                        maint_logs.append(row)
+
+            df_maint_history = pd.DataFrame(maint_logs) if maint_logs else pd.DataFrame(columns=df_logs.columns)
+
+            if not df_maint_history.empty:
+                if selected_asset_filter != "All Equipment":
+                    filtered_rows = []
+                    for _, row in df_maint_history.iterrows():
+                        eq_str = str(row.get("Equipment IDs", ""))
+                        eq_list = [e.strip() for e in eq_str.split(",") if e.strip()]
+                        if selected_asset_filter in eq_list:
+                            filtered_rows.append(row)
+                    df_display = pd.DataFrame(filtered_rows) if filtered_rows else pd.DataFrame(columns=df_maint_history.columns)
+                else:
+                    df_display = df_maint_history
+
+                if not df_display.empty:
+                    st.dataframe(df_display, use_container_width=True)
+                else:
+                    st.info(f"No damage or maintenance records found for {selected_asset_filter}.")
+            else:
+                st.info("No damage or maintenance reports have been logged in the system yet.")
+
+        with tab6:
+            st.subheader("Printable Mobile Home Screen Guide")
+            st.write("Use this page to print or save instructions for instructors on how to bookmark the inventory app onto their phone home screens.")
+
+            st.markdown(
+                """
+            <div class="printable-card" style="border: 1px solid #ccc; padding: 25px; border-radius: 8px; background-color: #fff;">
+                <h2>🪵 Greenway Training - Mobile Equipment Hub</h2>
+                <p><strong>Quick Access Guide for Field Instructors</strong></p>
+                <p>To log equipment hires and damage reports quickly out in the field without typing web addresses, add this app directly to your phone's home screen.</p>
+                <hr style="margin: 15px 0;">
+                <h3>📱 iPhone / iPad (Safari)</h3>
+                <ol>
+                    <li>Open the app link in <strong>Safari</strong>.</li>
+                    <li>Tap the <strong>Share</strong> button at the bottom toolbar (square with an arrow pointing up).</li>
+                    <li>Scroll down and select <strong>"Add to Home Screen"</strong>.</li>
+                    <li>Tap <strong>Add</strong> in the top-right corner. An icon will appear on your home screen.</li>
+                </ol>
+                <br>
+                <h3>🤖 Android (Chrome)</h3>
+                <ol>
+                    <li>Open the app link in <strong>Google Chrome</strong>.</li>
+                    <li>Tap the <strong>three vertical dots</strong> in the top-right corner.</li>
+                    <li>Select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</li>
+                    <li>Tap <strong>Install</strong> or <strong>Add</strong> to confirm.</li>
+                </ol>
+                <hr style="margin: 15px 0;">
+                <p style="font-size: 12px; color: #666; text-align: center;">Greenway Training Inventory Management System • Contact admin for support.</p>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.info("💡 **Tip:** Press **Ctrl + P** (Windows) or **Cmd + P** (Mac) on your keyboard while viewing this tab to print this guide directly or save it as a PDF.")
+
+
+if __name__ == "__main__":
+    main()
