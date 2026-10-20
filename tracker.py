@@ -117,6 +117,16 @@ def run():
     if "show_dates" not in st.session_state:
         st.session_state.show_dates = True
 
+    # Automatic mobile detection on first session load
+    if "welcome_dismissed" not in st.session_state:
+        ua = ""
+        try:
+            ua = st.context.headers.get("User-Agent", "").lower()
+        except Exception:
+            pass
+        is_mobile_device = any(k in ua for k in ["mobi", "android", "iphone", "ipad", "ipod"])
+        st.session_state.show_welcome = is_mobile_device
+
     # Responsive CSS Styling: Reduces top padding gap & optimizes mobile elements
     st.markdown(
         """
@@ -163,6 +173,38 @@ def run():
         unsafe_allow_html=True,
     )
 
+    # ----------------------------------------------------
+    # WELCOME / MOBILE HOME SCREEN GUIDE SCREEN
+    # ----------------------------------------------------
+    if st.session_state.get("show_welcome", False):
+        if os.path.exists(LOGO_FILE):
+            st.image(LOGO_FILE, width=220)
+        
+        st.title("Greenway Training Inventory Hub")
+        st.write("Welcome! Streamlined equipment tracking and safety logs for instructors and administrators.")
+        
+        st.info("📱 **Tip for Field Instructors:** Add this app directly to your mobile phone's home screen so you can access it instantly like a regular app without typing web addresses.")
+        
+        with st.expander("📖 Step-by-Step Instructions: How to Add to Mobile Home Screen", expanded=True):
+            st.markdown("""
+            **For iPhone / iPad (Safari):**
+            1. Tap the **Share** button at the bottom of your screen (the square with an arrow pointing upward).
+            2. Scroll down through the options menu and tap **"Add to Home Screen"**.
+            3. Tap **Add** in the top-right corner. The app icon will now appear right on your home screen!
+
+            **For Android (Chrome):**
+            1. Tap the **three vertical dots** in the top-right corner of Chrome.
+            2. Tap **"Add to Home screen"** or **"Install app"**.
+            3. Tap **Install** or **Add** to confirm. It will now be pinned to your device.
+            """)
+        
+        if st.button("🚀 Continue to Inventory App", use_container_width=True):
+            st.session_state.show_welcome = False
+            st.session_state.welcome_dismissed = True
+            st.rerun()
+            
+        return  # Pause main app rendering until welcome screen is dismissed
+
     df_inv, df_logs = load_inventory_and_logs()
 
     # Left Sidebar Navigation Menu
@@ -171,6 +213,11 @@ def run():
         "Navigation",
         ["Equipment Hire Log", "Live Dashboard", "Admin Portal"],
     )
+
+    st.sidebar.markdown("---")
+    if st.sidebar.button("📱 Mobile Home Screen Guide", use_container_width=True):
+        st.session_state.show_welcome = True
+        st.rerun()
 
     today = datetime.date.today()
 
