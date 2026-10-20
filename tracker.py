@@ -550,14 +550,15 @@ def run():
         render_header("Admin Management Portal")
         st.write(
             "Administrative controls for managing inventory, assessment dates,"
-            " dashboard views, and scheduled kit hires."
+            " dashboard views, scheduled kit hires, and maintenance history."
         )
 
-        tab1, tab2, tab3, tab4 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "Manage Equipment",
             "Assessment Dates",
             "Dashboard Views",
             "Scheduled Kit Hire",
+            "Maintenance History",
         ])
 
         with tab1:
@@ -689,3 +690,47 @@ def run():
                             "Please fill in Instructor Name, Customer Name, and select"
                             " Equipment IDs."
                         )
+
+        with tab5:
+            st.subheader("Damage & Maintenance History")
+            st.write("View the history of damage and maintenance reports logged for equipment.")
+
+            selected_asset_filter = st.selectbox(
+                "Filter by Asset ID",
+                options=["All Equipment"] + all_asset_ids,
+                key="maint_history_filter"
+            )
+
+            maint_logs = []
+            if not df_logs.empty:
+                for _, row in df_logs.iterrows():
+                    action = str(row.get("Action Type", ""))
+                    insp = str(row.get("Inspection Result", ""))
+                    notes = str(row.get("Notes / Damage Details", ""))
+                    if (
+                        action == "Report Damage / Maintenance"
+                        or ("Fail" in insp or "Maintenance" in insp)
+                        or (action == "Return Equipment" and notes.strip() and notes != "nan")
+                    ):
+                        maint_logs.append(row)
+
+            df_maint_history = pd.DataFrame(maint_logs) if maint_logs else pd.DataFrame(columns=df_logs.columns)
+
+            if not df_maint_history.empty:
+                if selected_asset_filter != "All Equipment":
+                    filtered_rows = []
+                    for _, row in df_maint_history.iterrows():
+                        eq_str = str(row.get("Equipment IDs", ""))
+                        eq_list = [e.strip() for e in eq_str.split(",") if e.strip()]
+                        if selected_asset_filter in eq_list:
+                            filtered_rows.append(row)
+                    df_display = pd.DataFrame(filtered_rows) if filtered_rows else pd.DataFrame(columns=df_maint_history.columns)
+                else:
+                    df_display = df_maint_history
+
+                if not df_display.empty:
+                    st.dataframe(df_display, use_container_width=True)
+                else:
+                    st.info(f"No damage or maintenance records found for {selected_asset_filter}.")
+            else:
+                st.info("No damage or maintenance reports have been logged in the system yet.")
