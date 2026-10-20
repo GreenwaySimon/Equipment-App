@@ -188,10 +188,9 @@ def main():
         with st.expander("📖 Step-by-Step Instructions: How to Add to Mobile Home Screen", expanded=True):
             st.markdown("""
             **For iPhone / iPad (Safari):**
-            1. Open the app link in **Safari**.
-            2. Tap the **Share** button at the bottom of your screen (square with an arrow pointing upward).
-            3. Scroll down and tap **"Add to Home Screen"**.
-            4. Tap **Add** in the top-right corner.
+            1. Tap the **Share** button at the bottom of your screen (square with an arrow pointing upward).
+            2. Scroll down and tap **"Add to Home Screen"**.
+            3. Tap **Add** in the top-right corner.
 
             **For Android (Chrome):**
             1. Tap the **three vertical dots** in the top-right corner of Chrome.
@@ -214,7 +213,17 @@ def main():
     if not is_mobile_device:
         nav_options.append("Admin Portal")
 
-    nav_option = st.sidebar.radio("Navigation", nav_options)
+    # If redirection flag is set after form submission, switch nav to Live Dashboard
+    if st.session_state.get("redirect_to_dashboard", False):
+        st.session_state.redirect_to_dashboard = False
+        st.session_state.nav_choice = "Live Dashboard"
+
+    # Use session state for radio index/selection stability
+    default_ix = 0
+    if "nav_choice" in st.session_state and st.session_state.nav_choice in nav_options:
+        default_ix = nav_options.index(st.session_state.nav_choice)
+
+    nav_option = st.sidebar.radio("Navigation", nav_options, index=default_ix, key="nav_choice")
 
     today = datetime.date.today()
 
@@ -457,6 +466,7 @@ def main():
 
                 st.success("✅ Success! Your equipment has been successfully logged.")
                 st.balloons()
+                st.session_state.redirect_to_dashboard = True
                 st.rerun()
 
     elif nav_option == "Live Dashboard":
