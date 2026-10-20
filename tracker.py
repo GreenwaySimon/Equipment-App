@@ -50,7 +50,7 @@ def run():
   st.markdown(
       """
     <style>
-    div.stButton > button, div.stFormSubmitButton > button {
+    div.stButton > button {
         font-size: 18px !important;
         padding: 0.75rem 1rem !important;
         width: 100% !important;
@@ -132,7 +132,6 @@ def run():
             d["reported_date"] = date_val
             d["repaired_date"] = "Pending"
           else:
-            # Check if assessment date is set and is today or in the future relative to today
             is_reserved = False
             if d["assessment_date"]:
               try:
@@ -194,118 +193,130 @@ def run():
     st.header("Equipment Log Action")
     st.write("Fill out the form below to record an entry.")
 
-    with st.form("log_form"):
-      action_type = st.selectbox(
-          "Action Type",
-          ["Check Out", "Return Equipment", "Report Damage / Maintenance"],
+    action_type = st.selectbox(
+        "Action Type",
+        [
+            "Check Out",
+            "Return Equipment",
+            "Report Damage / Maintenance",
+        ],
+        key="input_action_type",
+    )
+
+    instructor_name = st.text_input("Instructor Name", key="input_instructor")
+
+    # Dynamic Customer & Equipment selection based on Action Type
+    if action_type == "Check Out":
+      customer_name = st.text_input(
+          "Customer / Candidate Name", key="input_customer_text"
+      )
+      equipment_ids = st.multiselect(
+          "Equipment IDs (Available Equipment)",
+          options=all_asset_ids if all_asset_ids else [],
+          key="input_eq_checkout",
       )
 
-      instructor_name = st.text_input("Instructor Name")
-
-      # Dynamic Customer & Equipment selection based on Action Type
-      if action_type == "Check Out":
-        customer_name = st.text_input("Customer / Candidate Name")
+    elif action_type == "Return Equipment":
+      active_customers = list(customer_to_equipment_map.keys())
+      if active_customers:
+        customer_name = st.selectbox(
+            "Customer / Candidate Name",
+            options=active_customers,
+            key="input_customer_select",
+        )
+        allowed_equipment = customer_to_equipment_map.get(customer_name, [])
         equipment_ids = st.multiselect(
-            "Equipment IDs (Available Equipment)",
-            options=all_asset_ids if all_asset_ids else [],
+            "Equipment IDs to Return",
+            options=allowed_equipment,
+            default=allowed_equipment,
+            key="input_eq_return",
         )
+      else:
+        st.info("No customers currently have equipment checked out to return.")
+        customer_name = ""
+        equipment_ids = []
 
-      elif action_type == "Return Equipment":
-        active_customers = list(customer_to_equipment_map.keys())
-        if active_customers:
-          customer_name = st.selectbox(
-              "Customer / Candidate Name", options=active_customers
-          )
-          allowed_equipment = customer_to_equipment_map.get(customer_name, [])
-          equipment_ids = st.multiselect(
-              "Equipment IDs to Return",
-              options=allowed_equipment,
-              default=allowed_equipment,
-          )
-        else:
-          st.info(
-              "No customers currently have equipment checked out to return."
-          )
-          customer_name = ""
-          equipment_ids = []
-
-      else:  # Report Damage / Maintenance
-        customer_name = st.text_input(
-            "Customer / Candidate Name (Optional)"
-        )
-        equipment_ids = st.multiselect(
-            "Equipment IDs",
-            options=all_asset_ids if all_asset_ids else [],
-        )
-
-      # Side-by-side columns for Checkbox and Assessment Date box
-      col_cb, col_dt = st.columns([1, 1])
-      with col_cb:
-        include_assessment = st.checkbox(
-            "Include Assessment Date (Optional)", value=False
-        )
-
-      assessment_date_str = ""
-      if include_assessment:
-        with col_dt:
-          assessment_date_val = st.date_input(
-              "Assessment Date", value=datetime.date.today()
-          )
-          assessment_date_str = assessment_date_val.strftime("%d/%m/%Y")
-
-      inspection_result = st.selectbox(
-          "Inspection Result",
-          ["Not Inspected", "Pass", "Fail / Maintenance Required"],
-          index=0,
+    else:  # Report Damage / Maintenance
+      customer_name = st.text_input(
+          "Customer / Candidate Name (Optional)", key="input_customer_maint"
+      )
+      equipment_ids = st.multiselect(
+          "Equipment IDs",
+          options=all_asset_ids if all_asset_ids else [],
+          key="input_eq_maint",
       )
 
-      notes = st.text_area("Notes / Damage Details")
+    # Side-by-side columns: Checkbox instantly opens date input next to it
+    col_cb, col_dt = st.columns([1, 1])
+    with col_cb:
+      include_assessment = st.checkbox(
+          "Include Assessment Date (Optional)",
+          value=False,
+          key="input_include_assessment",
+      )
 
-      submitted = st.form_submit_button("Submit Entry")
+    assessment_date_str = ""
+    if include_assessment:
+      with col_dt:
+        assessment_date_val = st.date_input(
+            "Assessment Date",
+            value=datetime.date.today(),
+            key="input_assessment_date",
+        )
+        assessment_date_str = assessment_date_val.strftime("%d/%m/%Y")
 
-      # Warning checks during checkout for reserved equipment
-      has_reservation_warning = False
-      if submitted and action_type == "Check Out" and instructor_name:
-        for eq_id in equipment_ids:
-          eq_info = asset_data_map.get(eq_id, {})
-          if "RESERVED" in eq_info.get("status", ""):
-            ass_dt = eq_info.get("assessment_date", "")
-            st.warning(
-                f"Warning: Equipment {eq_id} is reserved for assessment on"
-                f" {ass_dt} and cannot be booked out!"
-            )
-            has_reservation_warning = True
+    inspection_result = st.selectbox(
+        "Inspection Result",
+        ["Not Inspected", "Pass", "Fail / Maintenance Required"],
+        index=0,
+        key="input_inspection",
+    )
 
-      if submitted:
-        if has_reservation_warning:
-          st.error(
-              "Submission blocked: One or more selected items are reserved for"
-              " assessment."
+    notes = st.text_area("Notes / Damage Details", key="input_notes")
+
+    submitted = st.button("Submit Entry", key="submit_log_btn")
+
+    # Warning checks during checkout for reserved equipment
+    has_reservation_warning = False
+    if submitted and action_type == "Check Out" and instructor_name:
+      for eq_id in equipment_ids:
+        eq_info = asset_data_map.get(eq_id, {})
+        if "RESERVED" in eq_info.get("status", ""):
+          ass_dt = eq_info.get("assessment_date", "")
+          st.warning(
+              f"Warning: Equipment {eq_id} is reserved for assessment on"
+              f" {ass_dt} and cannot be booked out!"
           )
-        elif instructor_name and equipment_ids:
-          eq_formatted = ", ".join(equipment_ids)
-          new_entry = pd.DataFrame([{
-              "Timestamp": datetime.datetime.now().strftime(
-                  "%Y-%m-%d %H:%M:%S"
-              ),
-              "Action Type": action_type,
-              "Instructor Name": instructor_name.strip(),
-              "Customer / Candidate Name": (
-                  str(customer_name).strip() if customer_name else ""
-              ),
-              "Equipment IDs": eq_formatted,
-              "Assessment Date": assessment_date_str,
-              "Inspection Result": inspection_result,
-              "Notes / Damage Details": notes,
-          }])
-          save_log(new_entry)
-          st.success("Log submitted successfully!")
-          st.rerun()
-        else:
-          st.error(
-              "Please provide Instructor Name, Customer, and select Equipment"
-              " IDs."
-          )
+          has_reservation_warning = True
+
+    if submitted:
+      if has_reservation_warning:
+        st.error(
+            "Submission blocked: One or more selected items are reserved for"
+            " assessment."
+        )
+      elif instructor_name and equipment_ids:
+        eq_formatted = ", ".join(equipment_ids)
+        new_entry = pd.DataFrame([{
+            "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Action Type": action_type,
+            "Instructor Name": instructor_name.strip(),
+            "Customer / Candidate Name": (
+                str(customer_name).strip() if customer_name else ""
+            ),
+            "Equipment IDs": eq_formatted,
+            "Assessment Date": assessment_date_str,
+            "Inspection Result": inspection_result,
+            "Notes / Damage Details": notes,
+        }])
+        save_log(new_entry)
+        st.success("Log submitted successfully!")
+        st.rerun()
+      else:
+        st.error(
+            "Please provide Instructor Name, Customer, and select Equipment"
+            " IDs."
+        )
 
   # ----------------------------------------------------
   # SECTION 2: LIVE DASHBOARD
