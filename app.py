@@ -154,9 +154,6 @@ def main():
         }
     }
     @media (max-width: 768px) {
-        div.stRadio div[role="radiogroup"] label:nth-child(3) {
-            display: none !important;
-        }
         div.stButton > button {
             font-size: 18px !important;
             padding: 0.85rem 1rem !important;
@@ -188,9 +185,10 @@ def main():
         with st.expander("📖 Step-by-Step Instructions: How to Add to Mobile Home Screen", expanded=True):
             st.markdown("""
             **For iPhone / iPad (Safari):**
-            1. Tap the **Share** button at the bottom of your screen (square with an arrow pointing upward).
-            2. Scroll down and tap **"Add to Home Screen"**.
-            3. Tap **Add** in the top-right corner.
+            1. Open the app link in **Safari**.
+            2. Tap the **Share** button at the bottom of your screen (square with an arrow pointing upward).
+            3. Scroll down and tap **"Add to Home Screen"**.
+            4. Tap **Add** in the top-right corner.
 
             **For Android (Chrome):**
             1. Tap the **three vertical dots** in the top-right corner of Chrome.
@@ -213,12 +211,10 @@ def main():
     if not is_mobile_device:
         nav_options.append("Admin Portal")
 
-    # If redirection flag is set after form submission, switch nav to Live Dashboard
     if st.session_state.get("redirect_to_dashboard", False):
         st.session_state.redirect_to_dashboard = False
         st.session_state.nav_choice = "Live Dashboard"
 
-    # Use session state for radio index/selection stability
     default_ix = 0
     if "nav_choice" in st.session_state and st.session_state.nav_choice in nav_options:
         default_ix = nav_options.index(st.session_state.nav_choice)
@@ -472,6 +468,12 @@ def main():
     elif nav_option == "Live Dashboard":
         render_header("Live Dashboard")
 
+        # Display mobile-only refresh button at the top of the Live Dashboard
+        if is_mobile_device:
+            if st.button("🔄 Refresh Dashboard Data", use_container_width=True):
+                st.rerun()
+            st.markdown("---")
+
         dashboard_rows = []
         for aid in all_asset_ids:
             info = asset_data_map.get(
@@ -722,33 +724,3 @@ def main():
 
             st.markdown("""
             <div class="printable-card" style="border: 1px solid #ccc; padding: 25px; border-radius: 8px; background-color: #fff;">
-                <h2>🪵 Greenway Training - Mobile Equipment Hub</h2>
-                <p><strong>Quick Access Guide for Field Instructors</strong></p>
-                <p>To log equipment hires and damage reports quickly out in the field without typing web addresses, add this app directly to your phone's home screen.</p>
-                <hr style="margin: 15px 0;">
-                <h3>📱 iPhone / iPad (Safari)</h3>
-                <ol>
-                    <li>Open the app link in <strong>Safari</strong>.</li>
-                    <li>Tap the <strong>Share</strong> button at the bottom toolbar (square with an arrow pointing up).</li>
-                    <li>Scroll down and select <strong>"Add to Home Screen"</strong>.</li>
-                    <li>Tap <strong>Add</strong> in the top-right corner. An icon will appear on your home screen.</li>
-                </ol>
-                <br>
-                <h3>🤖 Android (Chrome)</h3>
-                <ol>
-                    <li>Open the app link in <strong>Google Chrome</strong>.</li>
-                    <li>Tap the <strong>three vertical dots</strong> in the top-right corner.</li>
-                    <li>Select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</li>
-                    <li>Tap <strong>Install</strong> or <strong>Add</strong> to confirm.</li>
-                </ol>
-                <hr style="margin: 15px 0;">
-                <p style="font-size: 12px; color: #666; text-align: center;">Greenway Training Inventory Management System • Contact admin for support.</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.info("💡 **Tip:** Press **Ctrl + P** (Windows) or **Cmd + P** (Mac) on your keyboard while viewing this tab to print this guide directly or save it as a PDF.")
-
-
-if __name__ == "__main__":
-    main()
