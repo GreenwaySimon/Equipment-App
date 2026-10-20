@@ -720,4 +720,8 @@ def main():
             st.markdown("4. Tap **Install** or **Add** to confirm.")
             
             st.markdown("---")
-            st.info("💡 **Tip:** Press **Ctrl + P** (Windows) or **
+            st.info("💡 **Tip:** Press **Ctrl + P** (Windows) or **Cmd + P** (Mac) on your keyboard while viewing this tab to print this guide directly or save it as a PDF.")
+
+
+if __name__ == "__main__":
+    main()
