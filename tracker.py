@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 EXCEL_FILE = "Chainsaw_Equipment_Tracker.xlsx"
+LOGO_FILE = "greenway_training_logo.jpg"
 
 
 def load_inventory_and_logs():
@@ -267,14 +268,12 @@ def run():
     if not df_inv.empty and "Asset ID" in df_inv.columns:
         all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
 
-    # Display logo at the top of the main area if available
-    if os.path.exists("logo.png"):
-        st.image("logo.png", width=220)
-
     # ----------------------------------------------------
     # SECTION 1: EQUIPMENT HIRE LOG
     # ----------------------------------------------------
     if nav_option == "Equipment Hire Log":
+        if os.path.exists(LOGO_FILE):
+            st.image(LOGO_FILE, width=220)
         st.title("Equipment Hire Log")
         st.write("Fill out the form below to record an entry.")
 
@@ -424,6 +423,8 @@ def run():
     # SECTION 2: LIVE DASHBOARD
     # ----------------------------------------------------
     elif nav_option == "Live Dashboard":
+        if os.path.exists(LOGO_FILE):
+            st.image(LOGO_FILE, width=220)
         st.title("Live Dashboard")
 
         dashboard_rows = []
@@ -534,6 +535,8 @@ def run():
     # SECTION 3: ADMIN PORTAL
     # ----------------------------------------------------
     elif nav_option == "Admin Portal":
+        if os.path.exists(LOGO_FILE):
+            st.image(LOGO_FILE, width=220)
         st.title("Admin Management Portal")
         st.write(
             "Administrative controls for managing inventory, assessment dates,"
