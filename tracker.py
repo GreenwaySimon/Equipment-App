@@ -45,12 +45,26 @@ def save_log(new_row_df):
     df_logs.to_excel(writer, sheet_name="Sheet1", index=False)
 
 
+def save_inventory(df_inv):
+  _, df_logs = load_inventory_and_logs()
+  with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl") as writer:
+    df_inv.to_excel(writer, sheet_name="Inventory", index=False)
+    df_logs.to_excel(writer, sheet_name="Sheet1", index=False)
+
+
 def run():
-  # Responsive CSS Styling: Keeps desktop intact, optimizes mobile touch targets & font scaling
+  # Initialize session state for Dashboard view options if not set
+  if "show_instructor" not in st.session_state:
+    st.session_state.show_instructor = True
+  if "show_customer" not in st.session_state:
+    st.session_state.show_customer = True
+  if "show_dates" not in st.session_state:
+    st.session_state.show_dates = True
+
+  # Responsive CSS Styling: Hides Admin Portal on mobile screens (<= 768px)
   st.markdown(
       """
     <style>
-    /* Default Desktop Button Styling */
     div.stButton > button {
         font-size: 16px;
         padding: 0.5rem 1rem;
@@ -64,8 +78,12 @@ def run():
         border: 1px solid #dee2e6;
     }
 
-    /* Mobile & Tablet Responsive Optimizations (Screen width <= 768px) */
+    /* Mobile & Tablet Optimizations & Admin Portal Hiding */
     @media (max-width: 768px) {
+        /* Hide the 3rd radio option (Admin Portal) on mobile devices */
+        div.stRadio div[role="radiogroup"] label:nth-child(3) {
+            display: none !important;
+        }
         div.stButton > button {
             font-size: 18px !important;
             padding: 0.85rem 1rem !important;
@@ -75,18 +93,10 @@ def run():
         .stSelectbox, .stMultiSelect, .stTextInput, .stDateInput {
             font-size: 16px !important;
         }
-        h1 {
-            font-size: 24px !important;
-        }
-        h2 {
-            font-size: 20px !important;
-        }
-        h3 {
-            font-size: 18px !important;
-        }
-        .stDataFrame {
-            font-size: 13px !important;
-        }
+        h1 { font-size: 24px !important; }
+        h2 { font-size: 20px !important; }
+        h3 { font-size: 18px !important; }
+        .stDataFrame { font-size: 13px !important; }
     }
     </style>
     """,
@@ -98,7 +108,8 @@ def run():
   # Left Sidebar Navigation Menu
   st.sidebar.title("Menu")
   nav_option = st.sidebar.radio(
-      "Navigation", ["Equipment Log Action", "Live Dashboard"]
+      "Navigation",
+      ["Equipment Log Action", "Live Dashboard", "Admin Portal"],
   )
 
   st.markdown("---")
@@ -144,7 +155,7 @@ def run():
         if ass_dt_log and ass_dt_log != "nan" and ass_dt_log.strip():
           d["assessment_date"] = ass_dt_log.strip()
 
-        if action == "Check Out":
+        if action in ["Check Out", "Scheduled Kit Hire"]:
           d["status"] = "🔴 IN USE"
           d["checkout_date"] = date_val
           d["return_date"] = "Pending"
@@ -204,13 +215,6 @@ def run():
   if not df_inv.empty and "Asset ID" in df_inv.columns:
     all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
 
-  # Exclude 'IN USE' assets for Check Out option
-  available_for_checkout = [
-      aid
-      for aid in all_asset_ids
-      if asset_data_map.get(aid, {}).get("status") != "🔴 IN USE"
-  ]
-
   # ----------------------------------------------------
   # SECTION 1: EQUIPMENT LOG ACTION
   # ----------------------------------------------------
@@ -230,7 +234,6 @@ def run():
 
     instructor_name = st.text_input("Instructor Name", key="input_instructor")
 
-    # Dynamic Customer & Equipment selection based on Action Type
     if action_type == "Check Out":
       customer_name = st.text_input(
           "Customer / Candidate Name", key="input_customer_text"
@@ -271,7 +274,6 @@ def run():
           key="input_eq_maint",
       )
 
-    # Side-by-side columns: Checkbox and Assessment Date formatted as dd/mm/yyyy
     col_cb, col_dt = st.columns([1, 1])
     with col_cb:
       include_assessment = st.checkbox(
@@ -302,7 +304,6 @@ def run():
 
     submitted = st.button("Submit Entry", key="submit_log_btn")
 
-    # Warning checks during checkout for reserved equipment
     has_reservation_warning = False
     if submitted and action_type == "Check Out" and instructor_name:
       for eq_id in equipment_ids:
@@ -370,7 +371,6 @@ def run():
       instructor = info["instructor"]
       customer = info["customer"]
 
-      # Conditional date labelling based on status
       if status == "⚠️ MAINTENANCE":
         rep_dt = info["reported_date"] or "N/A"
         repa_dt = info["repaired_date"] or "Pending"
@@ -386,13 +386,15 @@ def run():
         )
         date_info = f"Check Out: {co_dt} | Return: {ret_dt}"
 
-      dashboard_rows.append({
-          "Asset ID": aid,
-          "Status": status,
-          "Instructor Name": instructor,
-          "Customer / Candidate Name": customer,
-          "Dates": date_info,
-      })
+      row_dict = {"Asset ID": aid, "Status": status}
+      if st.session_state.show_instructor:
+        row_dict["Instructor Name"] = instructor
+      if st.session_state.show_customer:
+        row_dict["Customer / Candidate Name"] = customer
+      if st.session_state.show_dates:
+        row_dict["Dates"] = date_info
+
+      dashboard_rows.append(row_dict)
 
     df_dashboard = pd.DataFrame(dashboard_rows)
 
@@ -418,7 +420,6 @@ def run():
         else 0
     )
 
-    # Display KPI Blocks at Top (4 columns)
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     with kpi1:
       st.metric(label="Total Available", value=total_avail)
@@ -454,3 +455,154 @@ def run():
       st.dataframe(styled_df, use_container_width=True)
     else:
       st.info("No asset inventory found.")
+
+  # ----------------------------------------------------
+  # SECTION 3: ADMIN PORTAL
+  # ----------------------------------------------------
+  elif nav_option == "Admin Portal":
+    st.header("Admin Management Portal")
+    st.write(
+        "Administrative controls for managing inventory, assessment dates,"
+        " dashboard views, and scheduled kit hires."
+    )
+
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Manage Equipment",
+        "Assessment Dates",
+        "Dashboard Views",
+        "Scheduled Kit Hire",
+    ])
+
+    # Tab 1: Add / Remove Equipment
+    with tab1:
+      st.subheader("Add or Remove Equipment")
+      col_add, col_rem = st.columns(2)
+
+      with col_add:
+        st.markdown("#### Add New Equipment")
+        with st.form("add_equip_form"):
+          new_asset_id = st.text_input("New Asset ID")
+          new_category = st.text_input("Category (e.g., Chainsaw, PPE)")
+          add_submitted = st.form_submit_button("Add Equipment")
+
+          if add_submitted:
+            if new_asset_id.strip():
+              if new_asset_id.strip() in all_asset_ids:
+                st.error("Asset ID already exists!")
+              else:
+                new_row = pd.DataFrame(
+                    [{"Asset ID": new_asset_id.strip(), "Category": new_category}]
+                )
+                df_inv = pd.concat([df_inv, new_row], ignore_index=True)
+                save_inventory(df_inv)
+                st.success(f"Successfully added {new_asset_id.strip()}!")
+                st.rerun()
+            else:
+              st.error("Please enter a valid Asset ID.")
+
+      with col_rem:
+        st.markdown("#### Remove Equipment")
+        with st.form("rem_equip_form"):
+          rem_asset_id = st.selectbox(
+              "Select Asset ID to Remove", options=all_asset_ids
+          )
+          rem_submitted = st.form_submit_button("Remove Equipment")
+
+          if rem_submitted:
+            if rem_asset_id:
+              df_inv = df_inv[df_inv["Asset ID"].astype(str) != str(rem_asset_id)]
+              save_inventory(df_inv)
+              st.success(f"Successfully removed {rem_asset_id}!")
+              st.rerun()
+
+    # Tab 2: Manual Assessment Date Entry
+    with tab2:
+      st.subheader("Manually Assign Assessment Date")
+      with st.form("admin_assessment_form"):
+        target_asset = st.selectbox("Select Asset ID", options=all_asset_ids)
+        admin_ass_date = st.date_input(
+            "Assessment Date", value=datetime.date.today(), format="DD/MM/YYYY"
+        )
+        admin_ass_notes = st.text_area("Notes / Reason")
+        admin_ass_submitted = st.form_submit_button("Save Assessment Date")
+
+        if admin_ass_submitted:
+          if target_asset:
+            formatted_date = admin_ass_date.strftime("%d/%m/%Y")
+            new_entry = pd.DataFrame([{
+                "Timestamp": datetime.datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+                "Action Type": "Admin Assessment Setup",
+                "Instructor Name": "Admin",
+                "Customer / Candidate Name": "Scheduled Assessment",
+                "Equipment IDs": str(target_asset),
+                "Assessment Date": formatted_date,
+                "Inspection Result": "Not Inspected",
+                "Notes / Damage Details": admin_ass_notes,
+            }])
+            save_log(new_entry)
+            st.success(
+                f"Assessment date {formatted_date} set for asset"
+                f" {target_asset}!"
+            )
+            st.rerun()
+
+    # Tab 3: Dashboard View Options
+    with tab3:
+      st.subheader("Live Dashboard Display Settings")
+      st.write("Select which information columns you want displayed on the Live Dashboard:")
+
+      st.session_state.show_instructor = st.checkbox(
+          "Show Instructor Name", value=st.session_state.show_instructor
+      )
+      st.session_state.show_customer = st.checkbox(
+          "Show Customer / Candidate Name", value=st.session_state.show_customer
+      )
+      st.session_state.show_dates = st.checkbox(
+          "Show Dates (Check Out / Return / Assessment / Maintenance)",
+          value=st.session_state.show_dates,
+      )
+      st.success("Dashboard view preferences updated successfully!")
+
+    # Tab 4: Predetermined Kit Hire
+    with tab4:
+      st.subheader("Schedule Predetermined Kit Hire")
+      st.write(
+          "Book a kit hire in advance. The system will automatically apply the"
+          " 'IN USE' status on the selected start date."
+      )
+
+      with st.form("scheduled_hire_form"):
+        sched_instructor = st.text_input("Instructor Name")
+        sched_customer = st.text_input("Customer / Candidate Name")
+        sched_equipment = st.multiselect(
+            "Equipment IDs to Schedule", options=all_asset_ids
+        )
+        sched_date = st.date_input(
+            "Kit Hire Start Date", value=datetime.date.today(), format="DD/MM/YYYY"
+        )
+        sched_notes = st.text_area("Booking Notes")
+        sched_submitted = st.form_submit_button("Schedule Kit Hire")
+
+        if sched_submitted:
+          if sched_instructor and sched_equipment and sched_customer:
+            eq_formatted = ", ".join(sched_equipment)
+            new_entry = pd.DataFrame([{
+                "Timestamp": sched_date.strftime("%Y-%m-%d 00:00:00"),
+                "Action Type": "Scheduled Kit Hire",
+                "Instructor Name": sched_instructor.strip(),
+                "Customer / Candidate Name": sched_customer.strip(),
+                "Equipment IDs": eq_formatted,
+                "Assessment Date": "",
+                "Inspection Result": "Not Inspected",
+                "Notes / Damage Details": sched_notes,
+            }])
+            save_log(new_entry)
+            st.success("Predetermined kit hire scheduled successfully!")
+            st.rerun()
+          else:
+            st.error(
+                "Please fill in Instructor Name, Customer Name, and select"
+                " Equipment IDs."
+            )
