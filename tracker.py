@@ -1,5 +1,8 @@
 import datetime
 import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import pandas as pd
 import streamlit as st
 
@@ -52,6 +55,60 @@ def save_inventory(df_inv):
     df_logs.to_excel(writer, sheet_name="Sheet1", index=False)
 
 
+def send_maintenance_email(log_details):
+  recipients = ["simon@greenwaytraining.co.uk", "rob@greenwaytraining.co.uk"]
+  subject = (
+      f"⚠️ Equipment Damage / Maintenance Reported -"
+      f" {log_details['Equipment IDs']}"
+  )
+
+  body = f"""
+An equipment damage or maintenance report has been submitted:
+
+- Timestamp: {log_details['Timestamp']}
+- Action Type: {log_details['Action Type']}
+- Instructor Name: {log_details['Instructor Name']}
+- Customer / Candidate Name: {log_details['Customer / Candidate Name'] or 'N/A'}
+- Equipment IDs: {log_details['Equipment IDs']}
+- Assessment Date: {log_details['Assessment Date'] or 'N/A'}
+- Inspection Result: {log_details['Inspection Result']}
+- Notes / Damage Details: {log_details['Notes / Damage Details']}
+"""
+
+  try:
+    smtp_server = st.secrets.get("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(st.secrets.get("SMTP_PORT", 587))
+    sender_email = st.secrets.get("SENDER_EMAIL", "")
+    sender_password = st.secrets.get("SENDER_PASSWORD", "")
+
+    if not sender_email or not sender_password:
+      st.warning(
+          "Log saved successfully, but email notification could not be sent"
+          " because SMTP credentials (SENDER_EMAIL and SENDER_PASSWORD) are not"
+          " configured in Streamlit Secrets."
+      )
+      return
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = ", ".join(recipients)
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    server = smtplib.SMTP(smtp_server, smtp_port)
+    server.starttls()
+    server.login(sender_email, sender_password)
+    server.sendmail(sender_email, recipients, msg.as_string())
+    server.quit()
+    st.success(
+        "Maintenance report email sent successfully to Simon and Rob!"
+    )
+  except Exception as e:
+    st.warning(
+        f"Log saved successfully, but failed to send email notification: {e}"
+    )
+
+
 def run():
   # Initialize session state for Dashboard view options if not set
   if "show_instructor" not in st.session_state:
@@ -80,7 +137,6 @@ def run():
 
     /* Mobile & Tablet Optimizations & Admin Portal Hiding */
     @media (max-width: 768px) {
-        /* Hide the 3rd radio option (Admin Portal) on mobile devices */
         div.stRadio div[role="radiogroup"] label:nth-child(3) {
             display: none !important;
         }
@@ -269,7 +325,7 @@ def run():
           "Customer / Candidate Name (Optional)", key="input_customer_maint"
       )
       equipment_ids = st.multiselect(
-          "Equipment IDs",
+          "Equipment IDs (Required)",
           options=all_asset_ids if all_asset_ids else [],
           key="input_eq_maint",
       )
@@ -300,7 +356,11 @@ def run():
         key="input_inspection",
     )
 
-    notes = st.text_area("Notes / Damage Details", key="input_notes")
+    notes = st.text_area(
+        "Notes / Damage Details"
+        + (" (Required for Maintenance)" if action_type == "Report Damage / Maintenance" else ""),
+        key="input_notes",
+    )
 
     submitted = st.button("Submit Entry", key="submit_log_btn")
 
@@ -322,9 +382,20 @@ def run():
             "Submission blocked: One or more selected items are reserved for"
             " assessment."
         )
-      elif instructor_name and equipment_ids:
+      elif action_type == "Report Damage / Maintenance" and (
+          not equipment_ids or not notes.strip()
+      ):
+        st.error(
+            "For 'Report Damage / Maintenance', you must select Equipment IDs"
+            " and provide Notes / Damage Details."
+        )
+      elif not instructor_name:
+        st.error("Please provide the Instructor Name.")
+      elif not equipment_ids:
+        st.error("Please select Equipment IDs.")
+      else:
         eq_formatted = ", ".join(equipment_ids)
-        new_entry = pd.DataFrame([{
+        new_entry_dict = {
             "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "Action Type": action_type,
             "Instructor Name": instructor_name.strip(),
@@ -334,16 +405,17 @@ def run():
             "Equipment IDs": eq_formatted,
             "Assessment Date": assessment_date_str,
             "Inspection Result": inspection_result,
-            "Notes / Damage Details": notes,
-        }])
+            "Notes / Damage Details": notes.strip(),
+        }
+        new_entry = pd.DataFrame([new_entry_dict])
         save_log(new_entry)
+
+        # Trigger email if reporting damage / maintenance
+        if action_type == "Report Damage / Maintenance":
+          send_maintenance_email(new_entry_dict)
+
         st.success("Log submitted successfully!")
         st.rerun()
-      else:
-        st.error(
-            "Please provide Instructor Name, Customer, and select Equipment"
-            " IDs."
-        )
 
   # ----------------------------------------------------
   # SECTION 2: LIVE DASHBOARD
