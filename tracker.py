@@ -108,7 +108,12 @@ An equipment damage or maintenance report has been submitted:
 
 
 def run():
-  st.title("Live Equipment Inventory Hub")
+  # Display company logo if present, followed by the main title
+  logo_path = "logo.png"
+  if os.path.exists(logo_path):
+    st.image(logo_path, width=220)
+
+  st.title("Chainsaw & PPE Live Inventory Hub")
 
   # Initialize session state for Dashboard view options if not set
   if "show_instructor" not in st.session_state:
