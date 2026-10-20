@@ -166,8 +166,6 @@ def run():
         ["Equipment Hire Log", "Live Dashboard", "Admin Portal"],
     )
 
-    st.markdown("---")
-
     today = datetime.date.today()
 
     # Process equipment statuses, customer mappings, and dynamic dates based on history
@@ -269,11 +267,15 @@ def run():
     if not df_inv.empty and "Asset ID" in df_inv.columns:
         all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
 
+    # Display logo at the top of the main area if available
+    if os.path.exists("logo.png"):
+        st.image("logo.png", width=220)
+
     # ----------------------------------------------------
     # SECTION 1: EQUIPMENT HIRE LOG
     # ----------------------------------------------------
     if nav_option == "Equipment Hire Log":
-        st.header("Equipment Hire Log")
+        st.title("Equipment Hire Log")
         st.write("Fill out the form below to record an entry.")
 
         action_type = st.selectbox(
@@ -422,7 +424,7 @@ def run():
     # SECTION 2: LIVE DASHBOARD
     # ----------------------------------------------------
     elif nav_option == "Live Dashboard":
-        st.header("Live Dashboard")
+        st.title("Live Dashboard")
 
         dashboard_rows = []
         for aid in all_asset_ids:
@@ -532,7 +534,7 @@ def run():
     # SECTION 3: ADMIN PORTAL
     # ----------------------------------------------------
     elif nav_option == "Admin Portal":
-        st.header("Admin Management Portal")
+        st.title("Admin Management Portal")
         st.write(
             "Administrative controls for managing inventory, assessment dates,"
             " dashboard views, and scheduled kit hires."
