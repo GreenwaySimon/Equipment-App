@@ -109,7 +109,7 @@ def main():
     if "show_dates" not in st.session_state:
         st.session_state.show_dates = True
 
-    # Custom mobile & UI styling
+    # Custom mobile, UI, and High-Contrast Sidebar Styling
     st.markdown(
         """
     <style>
@@ -122,6 +122,18 @@ def main():
         padding-left: 1rem !important;
         padding-right: 1rem !important;
     }
+    
+    /* Make sidebar active radio option high-contrast and easy to see */
+    [data-testid="stSidebar"] div.row-widget.stRadio div[role="radiogroup"] label {
+        font-size: 16px !important;
+        padding: 8px 10px;
+        border-radius: 6px;
+        margin-bottom: 4px;
+    }
+    [data-testid="stSidebar"] div.row-widget.stRadio div[role="radiogroup"] label[data-baseweb="radio"] input:checked + div {
+        background-color: #e9ecef;
+    }
+    
     div.stButton > button {
         font-size: 18px !important;
         padding: 0.75rem 1rem;
