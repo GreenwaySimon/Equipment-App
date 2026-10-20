@@ -117,10 +117,15 @@ def run():
     if "show_dates" not in st.session_state:
         st.session_state.show_dates = True
 
-    # Responsive CSS Styling: Hides Admin Portal on mobile screens (<= 768px)
+    # Responsive CSS Styling: Reduces top padding gap & optimizes mobile elements
     st.markdown(
         """
     <style>
+    /* Reduce Streamlit's default top gap/padding */
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 2rem !important;
+    }
     div.stButton > button {
         font-size: 16px;
         padding: 0.5rem 1rem;
