@@ -228,19 +228,20 @@ def main():
                 if ass_dt_log and ass_dt_log != "nan" and ass_dt_log.strip():
                     d["assessment_date"] = ass_dt_log.strip()
 
-                if action in ["Check Out", "Scheduled Kit Hire", "Admin Assessment Setup"]:
-                    if action != "Admin Assessment Setup":
-                        d["status"] = "🔴 IN USE"
-                        d["checkout_date"] = date_val
-                        d["return_date"] = "Pending"
+                if action in ["Check Out", "Scheduled Kit Hire"]:
+                    d["status"] = "🔴 IN USE"
+                    d["checkout_date"] = date_val
+                    d["return_date"] = "Pending"
                 elif action == "Return Equipment":
                     insp = str(row.get("Inspection Result", ""))
                     d["return_date"] = date_val
                     d["customer"] = ""
                     
-                    # If returned on or after the assessment date, clear the assessment date now.
-                    # If returned *before* the assessment date, keep assessment_date so it can trigger RESERVED on the assessment day.
-                    if d["assessment_date"]:
+                    # If this is the final return after assessment, clear the assessment date
+                    if d["status"] and "RESERVED" in d["status"]:
+                        d["assessment_date"] = ""
+                        d["status"] = "🟢 AVAILABLE"
+                    elif d["assessment_date"]:
                         try:
                             ass_str = d["assessment_date"].strip()[:10]
                             ass_parsed = (
@@ -248,23 +249,35 @@ def main():
                                 if "/" in ass_str
                                 else datetime.datetime.strptime(ass_str, "%Y-%m-%d").date()
                             )
-                            if today >= ass_parsed:
-                                d["assessment_date"] = ""
+                            ret_str = date_val.strip()[:10]
+                            ret_parsed = (
+                                datetime.datetime.strptime(ret_str, "%d/%m/%Y").date()
+                                if "/" in ret_str
+                                else datetime.datetime.strptime(ret_str, "%Y-%m-%d").date()
+                                if ret_str
+                                else today
+                            )
+                            
+                            days_gap = (ass_parsed - ret_parsed).days
+                            if days_gap >= 2:
+                                d["status"] = "🟢 AVAILABLE"
+                            else:
+                                d["status"] = f"📅 RESERVED ({d['assessment_date']})"
                         except Exception:
-                            d["assessment_date"] = ""
+                            d["status"] = "🟢 AVAILABLE"
+                    else:
+                        d["status"] = "🟢 AVAILABLE"
 
                     if "Fail" in insp or "Maintenance" in insp:
                         d["status"] = "⚠️ MAINTENANCE"
                         d["reported_date"] = date_val
                         d["repaired_date"] = "Pending"
-                    else:
-                        d["status"] = "🟢 AVAILABLE"
                 elif action == "Report Damage / Maintenance":
                     d["status"] = "⚠️ MAINTENANCE"
                     d["reported_date"] = date_val
                     d["repaired_date"] = "Pending"
 
-    # Dynamic Evaluation: Check if today matches the assessment date (ONLY if available, never override IN USE)
+    # Dynamic Evaluation: Apply 2-day gap rule for today's date
     for aid, info in asset_data_map.items():
         if info["status"] != "⚠️ MAINTENANCE" and info["status"] != "🔴 IN USE":
             if info["assessment_date"]:
@@ -276,11 +289,16 @@ def main():
                         else datetime.datetime.strptime(ass_str, "%Y-%m-%d").date()
                     )
 
-                    if today == ass_parsed:
-                        info["status"] = f"📅 RESERVED ({info['assessment_date']})"
-                    elif today > ass_parsed:
-                        info["assessment_date"] = ""
+                    days_to_ass = (ass_parsed - today).days
+
+                    if days_to_ass >= 2:
                         info["status"] = "🟢 AVAILABLE"
+                    else:
+                        info["status"] = f"📅 RESERVED ({info['assessment_date']})"
+                    
+                    if today > ass_parsed:
+                        # Keep reserved until returned post-assessment
+                        info["status"] = f"📅 RESERVED ({info['assessment_date']})"
                 except Exception:
                     pass
 
@@ -344,7 +362,7 @@ def main():
                     key="co_eq",
                 )
 
-                # Warning banner if selected equipment has a future assessment date following an earlier return
+                # Warning banner if selected equipment has an upcoming assessment date
                 for selected_id in co_equipment:
                     eq_info = asset_data_map.get(selected_id, {})
                     ass_dt_str = eq_info.get("assessment_date", "")
