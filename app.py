@@ -237,10 +237,14 @@ def main():
                     d["return_date"] = date_val
                     d["customer"] = ""
                     
-                    # Only clear assessment date if returned on or after assessment day
                     if d["assessment_date"]:
                         try:
-                            ass_parsed = datetime.datetime.strptime(d["assessment_date"], "%d/%m/%Y").date()
+                            ass_str = d["assessment_date"].strip()[:10]
+                            ass_parsed = (
+                                datetime.datetime.strptime(ass_str, "%d/%m/%Y").date()
+                                if "/" in ass_str
+                                else datetime.datetime.strptime(ass_str, "%Y-%m-%d").date()
+                            )
                             if today >= ass_parsed:
                                 d["assessment_date"] = ""
                         except Exception:
@@ -262,7 +266,13 @@ def main():
         if info["status"] != "⚠️ MAINTENANCE" and info["status"] != "🔴 IN USE":
             if info["assessment_date"]:
                 try:
-                    ass_parsed = datetime.datetime.strptime(info["assessment_date"], "%d/%m/%Y").date()
+                    ass_str = info["assessment_date"].strip()[:10]
+                    ass_parsed = (
+                        datetime.datetime.strptime(ass_str, "%d/%m/%Y").date()
+                        if "/" in ass_str
+                        else datetime.datetime.strptime(ass_str, "%Y-%m-%d").date()
+                    )
+
                     if today == ass_parsed:
                         info["status"] = f"📅 RESERVED ({info['assessment_date']})"
                     elif today > ass_parsed:
@@ -337,7 +347,12 @@ def main():
                     ass_dt_str = eq_info.get("assessment_date", "")
                     if ass_dt_str:
                         try:
-                            ass_parsed = datetime.datetime.strptime(ass_dt_str, "%d/%m/%Y").date()
+                            ass_str = ass_dt_str.strip()[:10]
+                            ass_parsed = (
+                                datetime.datetime.strptime(ass_str, "%d/%m/%Y").date()
+                                if "/" in ass_str
+                                else datetime.datetime.strptime(ass_str, "%Y-%m-%d").date()
+                            )
                             if today <= ass_parsed:
                                 st.warning(f"⚠️ Warning: Equipment {selected_id} is reserved for assessment on {ass_dt_str}.")
                         except Exception:
