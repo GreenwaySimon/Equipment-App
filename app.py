@@ -246,18 +246,22 @@ def main():
                     d["reported_date"] = date_val
                     d["repaired_date"] = "Pending"
 
-    # Dynamic Evaluation: Check if today is the exact assessment date
+    # Dynamic Evaluation Rules:
+    # 1. If IN USE, status stays IN USE regardless of assessment date.
+    # 2. If AVAILABLE, check if today matches the assessment date -> if so, show RESERVED.
+    # 3. If today is past the assessment date, clear assessment date.
     for aid, info in asset_data_map.items():
-        if info["assessment_date"] and info["status"] != "⚠️ MAINTENANCE":
-            try:
-                ass_parsed = datetime.datetime.strptime(info["assessment_date"], "%d/%m/%Y").date()
-                if today == ass_parsed:
-                    info["status"] = f"📅 RESERVED ({info['assessment_date']})"
-                elif today > ass_parsed and "RESERVED" in info["status"]:
-                    info["status"] = "🟢 AVAILABLE"
-                    info["assessment_date"] = ""
-            except Exception:
-                pass
+        if info["status"] != "⚠️ MAINTENANCE" and info["status"] != "🔴 IN USE":
+            if info["assessment_date"]:
+                try:
+                    ass_parsed = datetime.datetime.strptime(info["assessment_date"], "%d/%m/%Y").date()
+                    if today == ass_parsed:
+                        info["status"] = f"📅 RESERVED ({info['assessment_date']})"
+                    elif today > ass_parsed:
+                        info["assessment_date"] = ""
+                        info["status"] = "🟢 AVAILABLE"
+                except Exception:
+                    pass
 
     # Map both IN USE and RESERVED items to customers so they can be returned
     for aid, info in asset_data_map.items():
@@ -312,6 +316,7 @@ def main():
                     key="co_eq",
                 )
 
+                # Warning banner if selected equipment has a future/pending assessment date
                 for selected_id in co_equipment:
                     eq_info = asset_data_map.get(selected_id, {})
                     ass_dt_str = eq_info.get("assessment_date", "")
