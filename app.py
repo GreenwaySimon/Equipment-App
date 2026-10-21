@@ -312,22 +312,15 @@ def main():
                 co_instructor = st.text_input("Instructor Name", key="co_inst")
                 co_customer = st.text_input("Customer / Candidate Name", key="co_cust")
                 
-                # Only show available equipment in the multiselect options
                 co_equipment = st.multiselect(
                     "Equipment IDs (Available Equipment Only)",
                     options=available_asset_ids,
                     key="co_eq",
                 )
 
-                co_col_cb, co_col_dt = st.columns([1, 1])
-                with co_col_cb:
-                    co_include_ass = st.checkbox("Include Assessment Date (Optional)", value=False, key="co_inc_ass")
-                
-                co_ass_date_str = ""
-                if co_include_ass:
-                    with co_col_dt:
-                        co_ass_val = st.date_input("Assessment Date", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
-                        co_ass_date_str = co_ass_val.strftime("%d/%m/%Y")
+                # Direct Assessment Date input box (optional)
+                co_ass_val = st.date_input("Assessment Date (Optional - Leave as today or select specific date)", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
+                co_ass_date_str = co_ass_val.strftime("%d/%m/%Y") if co_ass_val else ""
 
                 co_notes = st.text_area("Notes / Booking Details", key="co_notes")
                 co_submitted = st.form_submit_button("Submit Check Out")
