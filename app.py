@@ -240,37 +240,24 @@ def main():
                         d["reported_date"] = date_val
                         d["repaired_date"] = "Pending"
                     else:
-                        is_reserved = False
-                        if d["assessment_date"]:
-                            try:
-                                ass_parsed = datetime.datetime.strptime(
-                                    d["assessment_date"], "%d/%m/%Y"
-                                ).date()
-                                if today <= ass_parsed:
-                                    is_reserved = True
-                            except Exception:
-                                pass
-
-                        if is_reserved:
-                            d["status"] = f"📅 RESERVED ({d['assessment_date']})"
-                        else:
-                            d["status"] = "🟢 AVAILABLE"
+                        d["status"] = "🟢 AVAILABLE"
                 elif action == "Report Damage / Maintenance":
                     d["status"] = "⚠️ MAINTENANCE"
                     d["reported_date"] = date_val
                     d["repaired_date"] = "Pending"
 
+    # Evaluate dynamic status for assessment dates (show RESERVED on the exact assessment day)
     for aid, info in asset_data_map.items():
-        if "RESERVED" in info["status"]:
-            if info["assessment_date"]:
-                try:
-                    ass_parsed = datetime.datetime.strptime(
-                        info["assessment_date"], "%d/%m/%Y"
-                    ).date()
-                    if today > ass_parsed:
-                        info["status"] = "🟢 AVAILABLE"
-                except Exception:
-                    pass
+        if info["status"] == "🟢 AVAILABLE" and info["assessment_date"]:
+            try:
+                ass_parsed = datetime.datetime.strptime(info["assessment_date"], "%d/%m/%Y").date()
+                if today == ass_parsed:
+                    info["status"] = f"📅 RESERVED ({info['assessment_date']})"
+                elif today > ass_parsed:
+                    # Clear assessment date after it has passed and equipment was returned
+                    info["assessment_date"] = ""
+            except Exception:
+                pass
 
     for aid, info in asset_data_map.items():
         if info["status"] == "🔴 IN USE" and info["customer"]:
@@ -323,25 +310,26 @@ def main():
                     key="co_eq",
                 )
 
+                # Warning banner if selected equipment has an active/future assessment date
+                for selected_id in co_equipment:
+                    eq_info = asset_data_map.get(selected_id, {})
+                    ass_dt_str = eq_info.get("assessment_date", "")
+                    if ass_dt_str:
+                        try:
+                            ass_parsed = datetime.datetime.strptime(ass_dt_str, "%d/%m/%Y").date()
+                            if today <= ass_parsed:
+                                st.warning(f"⚠️ Warning: Equipment {selected_id} is reserved for assessment on {ass_dt_str}.")
+                        except Exception:
+                            pass
+
                 co_ass_val = st.date_input("Assessment Date (Optional)", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
                 co_ass_date_str = co_ass_val.strftime("%d/%m/%Y") if co_ass_val else ""
 
                 co_notes = st.text_area("Notes / Booking Details", key="co_notes")
                 co_submitted = st.form_submit_button("Submit Check Out")
 
-                has_reservation_warning = False
-                if co_submitted and co_instructor:
-                    for eq_id in co_equipment:
-                        eq_info = asset_data_map.get(eq_id, {})
-                        if "RESERVED" in eq_info.get("status", ""):
-                            ass_dt = eq_info.get("assessment_date", "")
-                            st.warning(f"Warning: Equipment {eq_id} is reserved for assessment on {ass_dt} and cannot be booked out!")
-                            has_reservation_warning = True
-
                 if co_submitted:
-                    if has_reservation_warning:
-                        st.error("Submission blocked: One or more selected items are reserved for assessment.")
-                    elif not co_instructor:
+                    if not co_instructor:
                         st.error("Please provide the Instructor Name.")
                     elif not co_customer:
                         st.error("Please provide the Customer / Candidate Name.")
