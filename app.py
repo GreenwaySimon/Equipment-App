@@ -13,6 +13,7 @@ st.set_page_config(
     page_title="Greenway Training Inventory Hub",
     page_icon="🪵",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -147,6 +148,10 @@ def main():
         .stSidebar, nav, header, button { display: none !important; }
     }
     @media (max-width: 768px) {
+        /* Completely hide the sidebar on mobile devices */
+        [data-testid="stSidebar"] {
+            display: none !important;
+        }
         .stDataFrame { 
             font-size: 14px !important; 
         }
@@ -164,8 +169,6 @@ def main():
 
     df_inv, df_logs = load_inventory_and_logs()
 
-    st.sidebar.title("Menu")
-    
     nav_options = ["Equipment Hire Log", "Live Dashboard"]
     if not is_mobile_device:
         nav_options.append("Admin Portal")
@@ -174,7 +177,7 @@ def main():
         st.session_state.redirect_to_dashboard = False
         st.session_state.nav_choice = "Live Dashboard"
 
-    # Prominent Mobile Selectbox for Navigation at the top of mobile screens
+    # Dropdown navigation for mobile users as the sole navigation method
     if is_mobile_device:
         st.markdown("### 📱 Navigation Menu")
         nav_option = st.selectbox(
@@ -186,6 +189,7 @@ def main():
         st.session_state.nav_choice = nav_option
         st.markdown("---")
     else:
+        st.sidebar.title("Menu")
         default_ix = 0
         if "nav_choice" in st.session_state and st.session_state.nav_choice in nav_options:
             default_ix = nav_options.index(st.session_state.nav_choice)
@@ -289,11 +293,19 @@ def main():
         all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
 
     def render_header(title_text):
-        if os.path.exists(LOGO_FILE):
+        resolved_logo_path = LOGO_FILE
+        if not os.path.exists(resolved_logo_path):
+            # Check script directory if file isn't found in current working directory
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            alt_path = os.path.join(script_dir, LOGO_FILE)
+            if os.path.exists(alt_path):
+                resolved_logo_path = alt_path
+
+        if os.path.exists(resolved_logo_path):
             col_logo, col_title = st.columns([1, 4])
             with col_logo:
                 logo_width = 90 if is_mobile_device else 130
-                st.image(LOGO_FILE, width=logo_width)
+                st.image(resolved_logo_path, width=logo_width)
             with col_title:
                 st.title(title_text)
         else:
