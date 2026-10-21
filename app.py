@@ -278,6 +278,13 @@ def main():
     if not df_inv.empty and "Asset ID" in df_inv.columns:
         all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
 
+    # Filter asset IDs to only show those that are AVAILABLE
+    available_asset_ids = []
+    for aid in all_asset_ids:
+        info = asset_data_map.get(aid, {"status": "🟢 AVAILABLE"})
+        if info.get("status") == "🟢 AVAILABLE":
+            available_asset_ids.append(aid)
+
     def render_header(title_text):
         if os.path.exists(LOGO_FILE):
             col_logo, col_title = st.columns([1, 4])
@@ -304,9 +311,11 @@ def main():
             with st.form("checkout_form_sub"):
                 co_instructor = st.text_input("Instructor Name", key="co_inst")
                 co_customer = st.text_input("Customer / Candidate Name", key="co_cust")
+                
+                # Only show available equipment in the multiselect options
                 co_equipment = st.multiselect(
-                    "Equipment IDs (Available Equipment)",
-                    options=all_asset_ids if all_asset_ids else [],
+                    "Equipment IDs (Available Equipment Only)",
+                    options=available_asset_ids,
                     key="co_eq",
                 )
 
