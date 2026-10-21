@@ -240,6 +240,37 @@ def main():
                     if d["status"] and "RESERVED" in d["status"]:
                         d["assessment_date"] = ""
                         d["status"] = "🟢 AVAILABLE"
+                    elif d["status"] and "MAINTENANCE" in d["status"]:
+                        # Returned from maintenance: clear assessment date if past, else evaluate gap
+                        if d["assessment_date"]:
+                            try:
+                                ass_str = d["assessment_date"].strip()[:10]
+                                ass_parsed = (
+                                    datetime.datetime.strptime(ass_str, "%d/%m/%Y").date()
+                                    if "/" in ass_str
+                                    else datetime.datetime.strptime(ass_str, "%Y-%m-%d").date()
+                                />
+                                if today > ass_parsed:
+                                    d["assessment_date"] = ""
+                                    d["status"] = "🟢 AVAILABLE"
+                                else:
+                                    ret_str = date_val.strip()[:10]
+                                    ret_parsed = (
+                                        datetime.datetime.strptime(ret_str, "%d/%m/%Y").date()
+                                        if "/" in ret_str
+                                        else datetime.datetime.strptime(ret_str, "%Y-%m-%d").date()
+                                        if ret_str
+                                        else today
+                                    )
+                                    days_gap = (ass_parsed - ret_parsed).days
+                                    if days_gap >= 2:
+                                        d["status"] = "🟢 AVAILABLE"
+                                    else:
+                                        d["status"] = f"📅 RESERVED ({d['assessment_date']})"
+                            except Exception:
+                                d["status"] = "🟢 AVAILABLE"
+                        else:
+                            d["status"] = "🟢 AVAILABLE"
                     elif d["assessment_date"]:
                         try:
                             ass_str = d["assessment_date"].strip()[:10]
@@ -276,9 +307,25 @@ def main():
                     d["reported_date"] = date_val
                     d["repaired_date"] = "Pending"
 
-    # Dynamic Evaluation: Apply 2-day gap rule for today's date
+    # Dynamic Evaluation: Apply 2-day gap rule, freeze status if MAINTENANCE
     for aid, info in asset_data_map.items():
-        if info["status"] != "⚠️ MAINTENANCE" and info["status"] != "🔴 IN USE":
+        if info["status"] == "⚠️ MAINTENANCE":
+            # Freeze status in maintenance, but clear assessment date if it has already passed
+            if info["assessment_date"]:
+                try:
+                    ass_str = info["assessment_date"].strip()[:10]
+                    ass_parsed = (
+                        datetime.datetime.strptime(ass_str, "%d/%m/%Y").date()
+                        if "/" in ass_str
+                        else datetime.datetime.strptime(ass_str, "%Y-%m-%d").date()
+                    )
+                    if today > ass_parsed:
+                        info["assessment_date"] = ""
+                except Exception:
+                    pass
+            continue
+
+        if info["status"] != "🔴 IN USE":
             if info["assessment_date"]:
                 try:
                     ass_str = info["assessment_date"].strip()[:10]
@@ -300,7 +347,7 @@ def main():
                 except Exception:
                     pass
 
-    # Map IN USE and RESERVED items to customers/categories so they appear on the Return tab
+    # Map IN USE, RESERVED, and MAINTENANCE items to return groups
     for aid, info in asset_data_map.items():
         status = info["status"]
         cust = info["customer"] if info.get("customer") and info["customer"] != "nan" else ""
@@ -316,6 +363,12 @@ def main():
                 customer_to_equipment_map[res_cust] = []
             if aid not in customer_to_equipment_map[res_cust]:
                 customer_to_equipment_map[res_cust].append(aid)
+        elif status == "⚠️ MAINTENANCE" and not is_mobile_device:
+            maint_cust = "Maintenance Return (Desktop Only)"
+            if maint_cust not in customer_to_equipment_map:
+                customer_to_equipment_map[maint_cust] = []
+            if aid not in customer_to_equipment_map[maint_cust]:
+                customer_to_equipment_map[maint_cust].append(aid)
 
     all_asset_ids = []
     if not df_inv.empty and "Asset ID" in df_inv.columns:
@@ -416,7 +469,7 @@ def main():
             if active_customers:
                 with st.form("return_form_sub"):
                     ret_instructor = st.text_input("Instructor Name", key="ret_inst")
-                    ret_customer = st.selectbox("Customer / Candidate Name", options=active_customers, key="ret_cust_sel")
+                    ret_customer = st.selectbox("Customer / Candidate Name / Group", options=active_customers, key="ret_cust_sel")
                     
                     default_checked_out = customer_to_equipment_map.get(ret_customer, [])
                     ret_equipment = st.multiselect(
@@ -442,11 +495,12 @@ def main():
                             st.error("Please select Equipment IDs to return.")
                         else:
                             eq_formatted = ", ".join(ret_equipment)
+                            log_cust = "" if "Maintenance Return" in ret_customer else ret_customer.strip()
                             new_entry_dict = {
                                 "Timestamp": datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
                                 "Action Type": "Return Equipment",
                                 "Instructor Name": ret_instructor.strip(),
-                                "Customer / Candidate Name": ret_customer.strip(),
+                                "Customer / Candidate Name": log_cust,
                                 "Equipment IDs": eq_formatted,
                                 "Assessment Date": "",
                                 "Inspection Result": ret_inspection,
@@ -462,7 +516,10 @@ def main():
                             st.session_state.redirect_to_dashboard = True
                             st.rerun()
             else:
-                st.info("No customers currently have equipment checked out to return.")
+                if is_mobile_device:
+                    st.info("No active equipment returns available. (Note: Returning equipment from Maintenance requires the desktop version).")
+                else:
+                    st.info("No customers currently have equipment checked out to return.")
 
         with log_tab_damage:
             st.subheader("Report Damage or Maintenance")
