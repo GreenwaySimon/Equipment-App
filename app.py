@@ -228,15 +228,18 @@ def main():
                 if ass_dt_log and ass_dt_log != "nan" and ass_dt_log.strip():
                     d["assessment_date"] = ass_dt_log.strip()
 
-                if action in ["Check Out", "Scheduled Kit Hire"]:
-                    d["status"] = "🔴 IN USE"
-                    d["checkout_date"] = date_val
-                    d["return_date"] = "Pending"
+                if action in ["Check Out", "Scheduled Kit Hire", "Admin Assessment Setup"]:
+                    if action != "Admin Assessment Setup":
+                        d["status"] = "🔴 IN USE"
+                        d["checkout_date"] = date_val
+                        d["return_date"] = "Pending"
                 elif action == "Return Equipment":
                     insp = str(row.get("Inspection Result", ""))
                     d["return_date"] = date_val
                     d["customer"] = ""
                     
+                    # If returned on or after the assessment date, clear the assessment date now.
+                    # If returned *before* the assessment date, keep assessment_date so it can trigger RESERVED on the assessment day.
                     if d["assessment_date"]:
                         try:
                             ass_str = d["assessment_date"].strip()[:10]
@@ -261,9 +264,9 @@ def main():
                     d["reported_date"] = date_val
                     d["repaired_date"] = "Pending"
 
-    # Dynamic Evaluation: Check if today matches the assessment date to set RESERVED status
+    # Dynamic Evaluation: Check if today matches the assessment date (ONLY if available, never override IN USE)
     for aid, info in asset_data_map.items():
-        if info["status"] != "⚠️ MAINTENANCE":
+        if info["status"] != "⚠️ MAINTENANCE" and info["status"] != "🔴 IN USE":
             if info["assessment_date"]:
                 try:
                     ass_str = info["assessment_date"].strip()[:10]
@@ -341,7 +344,7 @@ def main():
                     key="co_eq",
                 )
 
-                # Warning banner if selected equipment has a future/pending assessment date
+                # Warning banner if selected equipment has a future assessment date following an earlier return
                 for selected_id in co_equipment:
                     eq_info = asset_data_map.get(selected_id, {})
                     ass_dt_str = eq_info.get("assessment_date", "")
