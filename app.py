@@ -166,7 +166,6 @@ def main():
 
     st.sidebar.title("Menu")
     
-    # Restrict Admin Portal to desktop browsers only
     nav_options = ["Equipment Hire Log", "Live Dashboard"]
     if not is_mobile_device:
         nav_options.append("Admin Portal")
@@ -200,7 +199,6 @@ def main():
             cust = str(row.get("Customer / Candidate Name", ""))
             ts = str(row.get("Timestamp", ""))
             
-            # Convert timestamp to dd/mm/yyyy format
             date_val = ""
             if ts and ts != "nan":
                 try:
@@ -286,7 +284,6 @@ def main():
     if not df_inv.empty and "Asset ID" in df_inv.columns:
         all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
 
-    # Filter asset IDs to only show those that are AVAILABLE
     available_asset_ids = []
     for aid in all_asset_ids:
         info = asset_data_map.get(aid, {"status": "🟢 AVAILABLE"})
@@ -326,8 +323,7 @@ def main():
                     key="co_eq",
                 )
 
-                # Assessment Date input formatted as dd/mm/yyyy
-                co_ass_val = st.date_input("Assessment Date (Optional - Leave as today or select specific date)", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
+                co_ass_val = st.date_input("Assessment Date (Optional)", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
                 co_ass_date_str = co_ass_val.strftime("%d/%m/%Y") if co_ass_val else ""
 
                 co_notes = st.text_area("Notes / Booking Details", key="co_notes")
@@ -460,4 +456,85 @@ def main():
                         send_maintenance_email(new_entry_dict)
 
                         st.success("✅ Success! Your equipment has been successfully logged.")
-                        st.
+                        st.balloons()
+                        st.session_state.redirect_to_dashboard = True
+                        st.rerun()
+
+    elif nav_option == "Live Dashboard":
+        render_header("Live Dashboard")
+
+        if is_mobile_device:
+            if st.button("🔄 Refresh Dashboard Data", use_container_width=True):
+                st.rerun()
+            st.markdown("---")
+
+        dashboard_rows = []
+        for aid in all_asset_ids:
+            info = asset_data_map.get(
+                aid,
+                {
+                    "status": "🟢 AVAILABLE",
+                    "instructor": "",
+                    "customer": "",
+                    "checkout_date": "",
+                    "return_date": "",
+                    "assessment_date": "",
+                    "reported_date": "",
+                    "repaired_date": "",
+                },
+            )
+
+            status = info["status"]
+            instructor = info["instructor"]
+            customer = info["customer"]
+
+            if status == "⚠️ MAINTENANCE":
+                rep_dt = info["reported_date"] or "N/A"
+                repa_dt = info["repaired_date"] or "Pending"
+                date_info = f"Reported: {rep_dt} | Repaired: {repa_dt}"
+            elif "RESERVED" in status:
+                ass_dt = info["assessment_date"] or "N/A"
+                date_info = f"Assessment Date: {ass_dt}"
+            else:
+                co_dt = info["checkout_date"] or "N/A"
+                ret_dt = info["return_date"] or ("Pending" if status == "🔴 IN USE" else "N/A")
+                date_info = f"Check Out: {co_dt} | Return: {ret_dt}"
+
+            row_dict = {"Asset ID": aid, "Status": status}
+            if st.session_state.show_instructor:
+                row_dict["Instructor Name"] = instructor
+            if st.session_state.show_customer:
+                row_dict["Customer / Candidate Name"] = customer
+            if st.session_state.show_dates:
+                row_dict["Dates"] = date_info
+
+            dashboard_rows.append(row_dict)
+
+        df_dashboard = pd.DataFrame(dashboard_rows)
+
+        total_avail = (df_dashboard["Status"] == "🟢 AVAILABLE").sum() if not df_dashboard.empty else 0
+        total_in_use = (df_dashboard["Status"] == "🔴 IN USE").sum() if not df_dashboard.empty else 0
+        total_reserved = df_dashboard["Status"].str.contains("RESERVED").sum() if not df_dashboard.empty else 0
+        total_maint = (df_dashboard["Status"] == "⚠️ MAINTENANCE").sum() if not df_dashboard.empty else 0
+
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+        with kpi1:
+            st.metric(label="Total Available", value=total_avail)
+        with kpi2:
+            st.metric(label="Total In Use", value=total_in_use)
+        with kpi3:
+            st.metric(label="Reserved for Assessment", value=total_reserved)
+        with kpi4:
+            st.metric(label="Maintenance Required", value=total_maint)
+
+        st.markdown("### Asset Inventory Status")
+
+        def highlight_status(val):
+            if val == "🟢 AVAILABLE":
+                return "background-color: #d4edda; color: #155724; font-weight: bold;"
+            elif val == "🔴 IN USE":
+                return "background-color: #f8d7da; color: #721c24; font-weight: bold;"
+            elif val == "⚠️ MAINTENANCE":
+                return "background-color: #fff3cd; color: #856404; font-weight: bold;"
+            elif "RESERVED" in val:
+                return "background-color: #cce5ff; color: #0040
