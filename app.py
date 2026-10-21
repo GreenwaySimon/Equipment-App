@@ -241,7 +241,6 @@ def main():
                         d["assessment_date"] = ""
                         d["status"] = "🟢 AVAILABLE"
                     elif d["status"] and "MAINTENANCE" in d["status"]:
-                        # Returned from maintenance: clear assessment date if past, else evaluate gap
                         if d["assessment_date"]:
                             try:
                                 ass_str = d["assessment_date"].strip()[:10]
@@ -249,7 +248,7 @@ def main():
                                     datetime.datetime.strptime(ass_str, "%d/%m/%Y").date()
                                     if "/" in ass_str
                                     else datetime.datetime.strptime(ass_str, "%Y-%m-%d").date()
-                                />
+                                )
                                 if today > ass_parsed:
                                     d["assessment_date"] = ""
                                     d["status"] = "🟢 AVAILABLE"
@@ -310,7 +309,6 @@ def main():
     # Dynamic Evaluation: Apply 2-day gap rule, freeze status if MAINTENANCE
     for aid, info in asset_data_map.items():
         if info["status"] == "⚠️ MAINTENANCE":
-            # Freeze status in maintenance, but clear assessment date if it has already passed
             if info["assessment_date"]:
                 try:
                     ass_str = info["assessment_date"].strip()[:10]
@@ -430,7 +428,6 @@ def main():
                         except Exception:
                             pass
 
-                # Assessment date defaults to blank (None) unless entered manually
                 co_ass_val = st.date_input("Assessment Date (Optional)", value=None, format="DD/MM/YYYY", key="co_ass_val")
                 co_ass_date_str = co_ass_val.strftime("%d/%m/%Y") if co_ass_val else ""
 
