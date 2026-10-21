@@ -236,7 +236,15 @@ def main():
                     insp = str(row.get("Inspection Result", ""))
                     d["return_date"] = date_val
                     d["customer"] = ""
-                    d["assessment_date"] = ""  # Reset assessment date upon return
+                    
+                    # Only clear assessment date if returned on or after assessment day
+                    if d["assessment_date"]:
+                        try:
+                            ass_parsed = datetime.datetime.strptime(d["assessment_date"], "%d/%m/%Y").date()
+                            if today >= ass_parsed:
+                                d["assessment_date"] = ""
+                        except Exception:
+                            d["assessment_date"] = ""
 
                     if "Fail" in insp or "Maintenance" in insp:
                         d["status"] = "⚠️ MAINTENANCE"
