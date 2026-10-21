@@ -247,10 +247,7 @@ def main():
                     d["reported_date"] = date_val
                     d["repaired_date"] = "Pending"
 
-    # Dynamic Evaluation Rules:
-    # 1. If IN USE, status stays IN USE regardless of assessment date.
-    # 2. If AVAILABLE, check if today matches the assessment date -> if so, show RESERVED.
-    # 3. If today is past the assessment date, clear assessment date when returned.
+    # Dynamic Evaluation: Check if today matches the assessment date to set RESERVED status
     for aid, info in asset_data_map.items():
         if info["status"] != "⚠️ MAINTENANCE" and info["status"] != "🔴 IN USE":
             if info["assessment_date"]:
@@ -258,24 +255,29 @@ def main():
                     ass_parsed = datetime.datetime.strptime(info["assessment_date"], "%d/%m/%Y").date()
                     if today == ass_parsed:
                         info["status"] = f"📅 RESERVED ({info['assessment_date']})"
+                    elif today > ass_parsed:
+                        # Clear out past assessment date so it returns to normal available behavior
+                        info["assessment_date"] = ""
+                        info["status"] = "🟢 AVAILABLE"
                 except Exception:
                     pass
 
-    # Map both IN USE and RESERVED items to customers so they can be returned
+    # Map IN USE items and RESERVED items so they appear on the Return tab
     for aid, info in asset_data_map.items():
         status = info["status"]
-        if status == "🔴 IN USE" and info["customer"]:
-            c_name = info["customer"]
-            if c_name not in customer_to_equipment_map:
-                customer_to_equipment_map[c_name] = []
-            if aid not in customer_to_equipment_map[c_name]:
-                customer_to_equipment_map[c_name].append(aid)
+        cust = info["customer"] if info.get("customer") and info["customer"] != "nan" else ""
+        
+        if status == "🔴 IN USE" and cust:
+            if cust not in customer_to_equipment_map:
+                customer_to_equipment_map[cust] = []
+            if aid not in customer_to_equipment_map[cust]:
+                customer_to_equipment_map[cust].append(aid)
         elif "RESERVED" in status:
-            c_name = info["customer"] if info["customer"] and info["customer"] != "nan" else "Scheduled Assessment"
-            if c_name not in customer_to_equipment_map:
-                customer_to_equipment_map[c_name] = []
-            if aid not in customer_to_equipment_map[c_name]:
-                customer_to_equipment_map[c_name].append(aid)
+            res_cust = "Scheduled Assessment (Reserved Equipment)"
+            if res_cust not in customer_to_equipment_map:
+                customer_to_equipment_map[res_cust] = []
+            if aid not in customer_to_equipment_map[res_cust]:
+                customer_to_equipment_map[res_cust].append(aid)
 
     all_asset_ids = []
     if not df_inv.empty and "Asset ID" in df_inv.columns:
