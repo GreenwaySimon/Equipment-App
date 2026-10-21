@@ -166,7 +166,6 @@ def main():
 
     st.sidebar.title("Menu")
     
-    # Restrict Admin Portal to desktop browsers only
     nav_options = ["Equipment Hire Log", "Live Dashboard"]
     if not is_mobile_device:
         nav_options.append("Admin Portal")
@@ -175,25 +174,22 @@ def main():
         st.session_state.redirect_to_dashboard = False
         st.session_state.nav_choice = "Live Dashboard"
 
-    default_ix = 0
-    if "nav_choice" in st.session_state and st.session_state.nav_choice in nav_options:
-        default_ix = nav_options.index(st.session_state.nav_choice)
-
-    nav_option = st.sidebar.radio("Navigation", nav_options, index=default_ix, key="nav_choice")
-
-    # Clear, prominent mobile navigation buttons at the top of mobile screens
+    # Prominent Mobile Selectbox for Navigation at the top of mobile screens
     if is_mobile_device:
-        st.markdown("### 📱 Quick Navigation")
-        m_col1, m_col2 = st.columns(2)
-        with m_col1:
-            if st.button("📤 Hire Log", use_container_width=True):
-                st.session_state.nav_choice = "Equipment Hire Log"
-                st.rerun()
-        with m_col2:
-            if st.button("📊 Dashboard", use_container_width=True):
-                st.session_state.nav_choice = "Live Dashboard"
-                st.rerun()
+        st.markdown("### 📱 Navigation Menu")
+        nav_option = st.selectbox(
+            "Select Page", 
+            nav_options, 
+            index=nav_options.index(st.session_state.get("nav_choice", nav_options[0])) if st.session_state.get("nav_choice") in nav_options else 0,
+            key="mobile_nav_selectbox"
+        )
+        st.session_state.nav_choice = nav_option
         st.markdown("---")
+    else:
+        default_ix = 0
+        if "nav_choice" in st.session_state and st.session_state.nav_choice in nav_options:
+            default_ix = nav_options.index(st.session_state.nav_choice)
+        nav_option = st.sidebar.radio("Navigation", nav_options, index=default_ix, key="nav_choice")
 
     today = datetime.date.today()
 
