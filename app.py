@@ -263,7 +263,7 @@ def main():
 
     # Dynamic Evaluation: Check if today matches the assessment date to set RESERVED status
     for aid, info in asset_data_map.items():
-        if info["status"] != "⚠️ MAINTENANCE" and info["status"] != "🔴 IN USE":
+        if info["status"] != "⚠️ MAINTENANCE":
             if info["assessment_date"]:
                 try:
                     ass_str = info["assessment_date"].strip()[:10]
