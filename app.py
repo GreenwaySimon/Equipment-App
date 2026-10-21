@@ -181,6 +181,20 @@ def main():
 
     nav_option = st.sidebar.radio("Navigation", nav_options, index=default_ix, key="nav_choice")
 
+    # Clear, prominent mobile navigation buttons at the top of mobile screens
+    if is_mobile_device:
+        st.markdown("### 📱 Quick Navigation")
+        m_col1, m_col2 = st.columns(2)
+        with m_col1:
+            if st.button("📤 Hire Log", use_container_width=True):
+                st.session_state.nav_choice = "Equipment Hire Log"
+                st.rerun()
+        with m_col2:
+            if st.button("📊 Dashboard", use_container_width=True):
+                st.session_state.nav_choice = "Live Dashboard"
+                st.rerun()
+        st.markdown("---")
+
     today = datetime.date.today()
 
     asset_data_map = {}
