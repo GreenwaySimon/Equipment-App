@@ -109,6 +109,8 @@ def main():
         st.session_state.show_customer = True
     if "show_dates" not in st.session_state:
         st.session_state.show_dates = True
+    if "nav_choice" not in st.session_state:
+        st.session_state.nav_choice = "Equipment Hire Log"
 
     ua = ""
     try:
@@ -122,6 +124,9 @@ def main():
     <style>
     [data-testid="stHeader"] {
         background: transparent;
+    }
+    [data-testid="stSidebar"] {
+        display: none !important;
     }
     .block-container {
         padding-top: 1rem !important;
@@ -148,9 +153,6 @@ def main():
         .stSidebar, nav, header, button { display: none !important; }
     }
     @media (max-width: 768px) {
-        [data-testid="stSidebar"] {
-            display: none !important;
-        }
         .stDataFrame { 
             font-size: 14px !important; 
         }
@@ -168,30 +170,26 @@ def main():
 
     df_inv, df_logs = load_inventory_and_logs()
 
-    nav_options = ["Equipment Hire Log", "Live Dashboard"]
-    if not is_mobile_device:
-        nav_options.append("Admin Portal")
+    nav_options = ["Equipment Hire Log", "Live Dashboard", "Admin Portal"]
 
     if st.session_state.get("redirect_to_dashboard", False):
         st.session_state.redirect_to_dashboard = False
         st.session_state.nav_choice = "Live Dashboard"
 
-    if is_mobile_device:
-        st.markdown("### 📱 Navigation Menu")
-        nav_option = st.selectbox(
-            "Select Page", 
-            nav_options, 
-            index=nav_options.index(st.session_state.get("nav_choice", nav_options[0])) if st.session_state.get("nav_choice") in nav_options else 0,
-            key="mobile_nav_selectbox"
-        )
-        st.session_state.nav_choice = nav_option
-        st.markdown("---")
-    else:
-        st.sidebar.title("Menu")
-        default_ix = 0
-        if "nav_choice" in st.session_state and st.session_state.nav_choice in nav_options:
-            default_ix = nav_options.index(st.session_state.nav_choice)
-        nav_option = st.sidebar.radio("Navigation", nav_options, index=default_ix, key="nav_choice")
+    # Sole Navigation Dropdown Box
+    st.markdown("### 🧭 App Navigation")
+    current_index = 0
+    if st.session_state.nav_choice in nav_options:
+        current_index = nav_options.index(st.session_state.nav_choice)
+
+    nav_option = st.selectbox(
+        "Select Page", 
+        nav_options, 
+        index=current_index,
+        key="main_nav_dropdown"
+    )
+    st.session_state.nav_choice = nav_option
+    st.markdown("---")
 
     today = datetime.date.today()
 
@@ -234,7 +232,6 @@ def main():
                     d["assessment_date"] = ass_dt_log.strip()
 
                 if action in ["Check Out", "Scheduled Kit Hire"]:
-                    # Check if there is an assessment date and whether today matches or precedes it
                     is_reserved = False
                     if d["assessment_date"]:
                         try:
