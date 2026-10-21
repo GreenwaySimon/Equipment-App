@@ -148,7 +148,6 @@ def main():
         .stSidebar, nav, header, button { display: none !important; }
     }
     @media (max-width: 768px) {
-        /* Completely hide the sidebar on mobile devices */
         [data-testid="stSidebar"] {
             display: none !important;
         }
@@ -177,7 +176,6 @@ def main():
         st.session_state.redirect_to_dashboard = False
         st.session_state.nav_choice = "Live Dashboard"
 
-    # Dropdown navigation for mobile users as the sole navigation method
     if is_mobile_device:
         st.markdown("### 📱 Navigation Menu")
         nav_option = st.selectbox(
@@ -236,7 +234,23 @@ def main():
                     d["assessment_date"] = ass_dt_log.strip()
 
                 if action in ["Check Out", "Scheduled Kit Hire"]:
-                    d["status"] = "🔴 IN USE"
+                    # Check if there is an assessment date and whether today matches or precedes it
+                    is_reserved = False
+                    if d["assessment_date"]:
+                        try:
+                            ass_parsed = datetime.datetime.strptime(
+                                d["assessment_date"], "%d/%m/%Y"
+                            ).date()
+                            if today <= ass_parsed:
+                                is_reserved = True
+                        except Exception:
+                            pass
+
+                    if is_reserved:
+                        d["status"] = f"📅 RESERVED ({d['assessment_date']})"
+                    else:
+                        d["status"] = "🔴 IN USE"
+
                     d["checkout_date"] = date_val
                     d["return_date"] = "Pending"
                 elif action == "Return Equipment":
@@ -295,7 +309,6 @@ def main():
     def render_header(title_text):
         resolved_logo_path = LOGO_FILE
         if not os.path.exists(resolved_logo_path):
-            # Check script directory if file isn't found in current working directory
             script_dir = os.path.dirname(os.path.abspath(__file__))
             alt_path = os.path.join(script_dir, LOGO_FILE)
             if os.path.exists(alt_path):
@@ -332,15 +345,12 @@ def main():
                     key="co_eq",
                 )
 
-                co_col_cb, co_col_dt = st.columns([1, 1])
-                with co_col_cb:
-                    co_include_ass = st.checkbox("Include Assessment Date (Optional)", value=False, key="co_inc_ass")
+                co_include_ass = st.checkbox("Include Assessment Date (Optional)", value=False, key="co_inc_ass")
                 
                 co_ass_date_str = ""
                 if co_include_ass:
-                    with co_col_dt:
-                        co_ass_val = st.date_input("Assessment Date", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
-                        co_ass_date_str = co_ass_val.strftime("%d/%m/%Y")
+                    co_ass_val = st.date_input("Assessment Date (dd/mm/yyyy)", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
+                    co_ass_date_str = co_ass_val.strftime("%d/%m/%Y")
 
                 co_notes = st.text_area("Notes / Booking Details", key="co_notes")
                 co_submitted = st.form_submit_button("Submit Check Out")
