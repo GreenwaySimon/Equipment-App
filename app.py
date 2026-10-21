@@ -13,7 +13,6 @@ st.set_page_config(
     page_title="Greenway Training Inventory Hub",
     page_icon="🪵",
     layout="wide",
-    initial_sidebar_state="collapsed",
 )
 
 
@@ -109,8 +108,6 @@ def main():
         st.session_state.show_customer = True
     if "show_dates" not in st.session_state:
         st.session_state.show_dates = True
-    if "nav_choice" not in st.session_state:
-        st.session_state.nav_choice = "Equipment Hire Log"
 
     ua = ""
     try:
@@ -124,9 +121,6 @@ def main():
     <style>
     [data-testid="stHeader"] {
         background: transparent;
-    }
-    [data-testid="stSidebar"] {
-        display: none !important;
     }
     .block-container {
         padding-top: 1rem !important;
@@ -170,26 +164,22 @@ def main():
 
     df_inv, df_logs = load_inventory_and_logs()
 
-    nav_options = ["Equipment Hire Log", "Live Dashboard", "Admin Portal"]
+    st.sidebar.title("Menu")
+    
+    # Restrict Admin Portal to desktop browsers only
+    nav_options = ["Equipment Hire Log", "Live Dashboard"]
+    if not is_mobile_device:
+        nav_options.append("Admin Portal")
 
     if st.session_state.get("redirect_to_dashboard", False):
         st.session_state.redirect_to_dashboard = False
         st.session_state.nav_choice = "Live Dashboard"
 
-    # Sole Navigation Dropdown Box
-    st.markdown("### 🧭 App Navigation")
-    current_index = 0
-    if st.session_state.nav_choice in nav_options:
-        current_index = nav_options.index(st.session_state.nav_choice)
+    default_ix = 0
+    if "nav_choice" in st.session_state and st.session_state.nav_choice in nav_options:
+        default_ix = nav_options.index(st.session_state.nav_choice)
 
-    nav_option = st.selectbox(
-        "Select Page", 
-        nav_options, 
-        index=current_index,
-        key="main_nav_dropdown"
-    )
-    st.session_state.nav_choice = nav_option
-    st.markdown("---")
+    nav_option = st.sidebar.radio("Navigation", nav_options, index=default_ix, key="nav_choice")
 
     today = datetime.date.today()
 
@@ -232,22 +222,7 @@ def main():
                     d["assessment_date"] = ass_dt_log.strip()
 
                 if action in ["Check Out", "Scheduled Kit Hire"]:
-                    is_reserved = False
-                    if d["assessment_date"]:
-                        try:
-                            ass_parsed = datetime.datetime.strptime(
-                                d["assessment_date"], "%d/%m/%Y"
-                            ).date()
-                            if today <= ass_parsed:
-                                is_reserved = True
-                        except Exception:
-                            pass
-
-                    if is_reserved:
-                        d["status"] = f"📅 RESERVED ({d['assessment_date']})"
-                    else:
-                        d["status"] = "🔴 IN USE"
-
+                    d["status"] = "🔴 IN USE"
                     d["checkout_date"] = date_val
                     d["return_date"] = "Pending"
                 elif action == "Return Equipment":
@@ -304,18 +279,11 @@ def main():
         all_asset_ids = df_inv["Asset ID"].dropna().astype(str).tolist()
 
     def render_header(title_text):
-        resolved_logo_path = LOGO_FILE
-        if not os.path.exists(resolved_logo_path):
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            alt_path = os.path.join(script_dir, LOGO_FILE)
-            if os.path.exists(alt_path):
-                resolved_logo_path = alt_path
-
-        if os.path.exists(resolved_logo_path):
+        if os.path.exists(LOGO_FILE):
             col_logo, col_title = st.columns([1, 4])
             with col_logo:
                 logo_width = 90 if is_mobile_device else 130
-                st.image(resolved_logo_path, width=logo_width)
+                st.image(LOGO_FILE, width=logo_width)
             with col_title:
                 st.title(title_text)
         else:
@@ -342,12 +310,15 @@ def main():
                     key="co_eq",
                 )
 
-                co_include_ass = st.checkbox("Include Assessment Date (Optional)", value=False, key="co_inc_ass")
+                co_col_cb, co_col_dt = st.columns([1, 1])
+                with co_col_cb:
+                    co_include_ass = st.checkbox("Include Assessment Date (Optional)", value=False, key="co_inc_ass")
                 
                 co_ass_date_str = ""
                 if co_include_ass:
-                    co_ass_val = st.date_input("Assessment Date (dd/mm/yyyy)", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
-                    co_ass_date_str = co_ass_val.strftime("%d/%m/%Y")
+                    with co_col_dt:
+                        co_ass_val = st.date_input("Assessment Date", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
+                        co_ass_date_str = co_ass_val.strftime("%d/%m/%Y")
 
                 co_notes = st.text_area("Notes / Booking Details", key="co_notes")
                 co_submitted = st.form_submit_button("Submit Check Out")
