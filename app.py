@@ -237,7 +237,6 @@ def main():
                     d["return_date"] = date_val
                     d["customer"] = ""
                     
-                    # If this is the final return after assessment, clear the assessment date
                     if d["status"] and "RESERVED" in d["status"]:
                         d["assessment_date"] = ""
                         d["status"] = "🟢 AVAILABLE"
@@ -297,7 +296,6 @@ def main():
                         info["status"] = f"📅 RESERVED ({info['assessment_date']})"
                     
                     if today > ass_parsed:
-                        # Keep reserved until returned post-assessment
                         info["status"] = f"📅 RESERVED ({info['assessment_date']})"
                 except Exception:
                     pass
@@ -379,7 +377,8 @@ def main():
                         except Exception:
                             pass
 
-                co_ass_val = st.date_input("Assessment Date (Optional)", value=datetime.date.today(), format="DD/MM/YYYY", key="co_ass_val")
+                # Assessment date defaults to blank (None) unless entered manually
+                co_ass_val = st.date_input("Assessment Date (Optional)", value=None, format="DD/MM/YYYY", key="co_ass_val")
                 co_ass_date_str = co_ass_val.strftime("%d/%m/%Y") if co_ass_val else ""
 
                 co_notes = st.text_area("Notes / Booking Details", key="co_notes")
@@ -648,12 +647,12 @@ def main():
             st.subheader("Manually Assign Assessment Date")
             with st.form("admin_assessment_form"):
                 target_asset = st.selectbox("Select Asset ID", options=all_asset_ids)
-                admin_ass_date = st.date_input("Assessment Date", value=datetime.date.today(), format="DD/MM/YYYY")
+                admin_ass_date = st.date_input("Assessment Date", value=None, format="DD/MM/YYYY")
                 admin_ass_notes = st.text_area("Notes / Reason")
                 admin_ass_submitted = st.form_submit_button("Save Assessment Date")
 
                 if admin_ass_submitted:
-                    if target_asset:
+                    if target_asset and admin_ass_date:
                         formatted_date = admin_ass_date.strftime("%d/%m/%Y")
                         new_entry = pd.DataFrame([{
                             "Timestamp": datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
@@ -668,6 +667,8 @@ def main():
                         save_log(new_entry)
                         st.success(f"Assessment date {formatted_date} set for asset {target_asset}!")
                         st.rerun()
+                    else:
+                        st.error("Please select an Assessment Date.")
 
         with tab3:
             st.subheader("Live Dashboard Display Settings")
