@@ -236,6 +236,7 @@ def main():
                     insp = str(row.get("Inspection Result", ""))
                     d["return_date"] = date_val
                     d["customer"] = ""
+                    d["assessment_date"] = ""  # Clear assessment date upon return so warnings stop
                     if "Fail" in insp or "Maintenance" in insp:
                         d["status"] = "⚠️ MAINTENANCE"
                         d["reported_date"] = date_val
@@ -256,13 +257,12 @@ def main():
                     if today == ass_parsed:
                         info["status"] = f"📅 RESERVED ({info['assessment_date']})"
                     elif today > ass_parsed:
-                        # Clear out past assessment date so it returns to normal available behavior
                         info["assessment_date"] = ""
                         info["status"] = "🟢 AVAILABLE"
                 except Exception:
                     pass
 
-    # Map IN USE items and RESERVED items so they appear on the Return tab
+    # Map IN USE and RESERVED items to customers/categories so they appear on the Return tab
     for aid, info in asset_data_map.items():
         status = info["status"]
         cust = info["customer"] if info.get("customer") and info["customer"] != "nan" else ""
