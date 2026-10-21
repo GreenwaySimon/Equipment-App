@@ -254,13 +254,14 @@ def main():
                 if today == ass_parsed:
                     info["status"] = f"📅 RESERVED ({info['assessment_date']})"
                 elif today > ass_parsed:
-                    # Clear assessment date after it has passed and equipment was returned
                     info["assessment_date"] = ""
             except Exception:
                 pass
 
+    # Map both IN USE and RESERVED items to customers so they can be returned
     for aid, info in asset_data_map.items():
-        if info["status"] == "🔴 IN USE" and info["customer"]:
+        status = info["status"]
+        if (status == "🔴 IN USE" or "RESERVED" in status) and info["customer"]:
             c_name = info["customer"]
             if c_name not in customer_to_equipment_map:
                 customer_to_equipment_map[c_name] = []
@@ -310,7 +311,6 @@ def main():
                     key="co_eq",
                 )
 
-                # Warning banner if selected equipment has an active/future assessment date
                 for selected_id in co_equipment:
                     eq_info = asset_data_map.get(selected_id, {})
                     ass_dt_str = eq_info.get("assessment_date", "")
